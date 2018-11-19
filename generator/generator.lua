@@ -405,6 +405,28 @@ function M.loadWAV(file, spec, audio_buf, audio_len)
    return M.loadWAV_RW(M.RWFromFile(file, "rb"), 1, spec, audio_buf, audio_len)
 end
 
+local callback_t
+local callbacks_anchor = {}
+function M.MakeAudioCallback(func)
+	if not callback_t then
+		local CallbackFactory = require "lj-async.callback"
+		callback_t = CallbackFactory("void(*)(void*,uint8_t*,int)") --"SDL_AudioCallback"
+	end
+	local cb = callback_t(func)
+	table.insert(callbacks_anchor,cb)
+	return cb:funcptr()
+end
+local threadfunc_t
+function M.MakeThreadFunc(func)
+	if not threadfunc_t then
+		local CallbackFactory = require "lj-async.callback"
+		threadfunc_t = CallbackFactory("int(*)(void*)")
+	end
+	local cb = threadfunc_t(func)
+	table.insert(callbacks_anchor,cb)
+	return cb:funcptr()
+end
+
 setmetatable(M,{
 __index = function(t,k)
 	local str2 = "SDL_"..string.upper(k:sub(1,1))..k:sub(2)
