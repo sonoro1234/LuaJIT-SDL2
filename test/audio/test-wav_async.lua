@@ -17,14 +17,16 @@ struct MySound {
 };
 ]]
 
-local function mixaudio(userdata, stream, len)
-   local ffi = require"ffi"
+local function mixaudio()
+local ffi = require"ffi"
+return function(userdata, stream, len)
    local sound = ffi.cast('struct {uint8_t* data;uint32_t length;uint32_t pos;}*', userdata)
    --local sound = ffi.cast('struct MySound*', userdata)
    print(string.format("playing len=%d pos=%d\n", sound.length, sound.pos))
    local tocopy = sound.length - sound.pos > len and len or sound.length - sound.pos
    ffi.copy(stream, sound.data + sound.pos, tocopy)
    sound.pos = sound.pos + tocopy
+end
 end
 
 
