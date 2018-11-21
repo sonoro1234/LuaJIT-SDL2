@@ -1,6 +1,6 @@
 local sdl = require"sdl2_ffi"
 local ffi = require"ffi"
-
+ffi.cdef[[void SDL_AtomicIncRef(SDL_atomic_t* a)]]
 if (sdl.init(sdl.INIT_VIDEO+sdl.INIT_TIMER) ~= 0) then
 
         print(string.format("Error: %s\n", sdl.getError()));
@@ -12,15 +12,11 @@ local ffi = require"ffi"
 local sdl = require"sdl2_ffi"
 return function(ptr)
     local cnt;
-	local st = ffi.cast("struct {int data[1];SDL_mutex *mutex;}*",ptr)
-	local data = st.data
-	local mutex = st.mutex
+	local atomic = ffi.cast("SDL_atomic_t *",ptr)
     for i = 0,99 do
         sdl.delay(5);
-		local ret = sdl.LockMutex(mutex)
-		data[0] = data[0] + 1
-		local vv = data[0]
-		sdl.UnlockMutex(mutex)
+		sdl.AtomicAdd(atomic,1)
+		local vv = sdl.AtomicGet(atomic)
         print(string.format("\nThread counter1: %d", vv));
         cnt = i
     end
@@ -33,32 +29,27 @@ local ffi = require"ffi"
 local sdl = require"sdl2_ffi"
 return function(ptr)
     local cnt;
-	local st = ffi.cast("struct {int data[1];SDL_mutex *mutex;}*",ptr)
-	local data = st.data
-	local mutex = st.mutex
+	local atomic = ffi.cast("SDL_atomic_t *",ptr)
     for i = 0,99 do
         sdl.delay(4);
-		local ret = sdl.LockMutex(mutex)
-		data[0] = data[0] + 1
-		local vv = data[0]
-		sdl.UnlockMutex(mutex)
+		sdl.AtomicAdd(atomic,1)
+		local vv = sdl.AtomicGet(atomic)
         print(string.format("\nThread counter2: %d", vv));
         cnt = i
-		
     end
     return cnt;
 end
 end
 
 
-local data = ffi.new("struct {int data[1];SDL_mutex *mutex;}")
-data.mutex = sdl.createMutex()
+--local data = ffi.new("SDL_atomic_t *atomic")
+local data = ffi.new("SDL_atomic_t[1]")
 local  threadReturnValue = ffi.new("int[1]")
 
 print("\nSimple SDL_CreateThread test:");
 
-local thread = sdl.createThread(sdl.MakeThreadFunc(TestThread), "TestThread",data,nil,nil)
-local thread2 = sdl.createThread(sdl.MakeThreadFunc(TestThread2), "TestThread2",data,nil,nil)
+local thread = sdl.createThread(sdl.MakeThreadFunc(TestThread), "TestThread",data[0],nil,nil)
+local thread2 = sdl.createThread(sdl.MakeThreadFunc(TestThread2), "TestThread2",data[0],nil,nil)
 
 
 if (nil == thread or nil==thread2)  then
@@ -67,9 +58,8 @@ if (nil == thread or nil==thread2)  then
 else 
     sdl.waitThread(thread, threadReturnValue);
 	sdl.waitThread(thread2, nil);
-    print(string.format("\nThread returned value: %d", threadReturnValue[0]),data.data[0],"should be 200");
+    print(string.format("\nThread returned value: %d", threadReturnValue[0]),sdl.AtomicGet(data),"should be 200");
 end
 
-sdl.DestroyMutex(data.mutex)
 sdl.Quit()
 
