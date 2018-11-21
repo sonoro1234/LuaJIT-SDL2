@@ -6,3 +6,5 @@ CMake will use INSTALL_CMOD and INSTALL_LMOD variables for installing SDL2.(dll 
 See test folder examples for usage
 
 luajit-async (taken from https://github.com/ColonelThirtyTwo/luajit-async) will be also installed for providing lua functions that can be called from another thread (sdl.MakeAudioCallback and sdl.MakeThreadFunc)
+
+This repo is used in https://github.com/sonoro1234/LuaJIT-ImGui where you get very usefull GUI widgets.

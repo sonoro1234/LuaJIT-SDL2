@@ -7,7 +7,6 @@ if (sdl.init(sdl.INIT_VIDEO+sdl.INIT_TIMER) ~= 0) then
         return -1;
 end
 
---/* Very simple thread - counts 0 to 9 delaying 1000ms between increments */
 local function TestThread()
 local ffi = require"ffi"
 local sdl = require"sdl2_ffi"
@@ -59,7 +58,7 @@ local  threadReturnValue = ffi.new("int[1]")
 print("\nSimple SDL_CreateThread test:");
 
 local thread = sdl.createThread(sdl.MakeThreadFunc(TestThread), "TestThread",data,nil,nil)
-local thread2 = sdl.createThread(sdl.MakeThreadFunc(TestThread2), "TestThread",data,nil,nil)
+local thread2 = sdl.createThread(sdl.MakeThreadFunc(TestThread2), "TestThread2",data,nil,nil)
 
 
 if (nil == thread or nil==thread2)  then
@@ -70,4 +69,6 @@ else
 	sdl.waitThread(thread2, nil);
     print(string.format("\nThread returned value: %d", threadReturnValue[0]),data.data[0],"should be 200");
 end
+
+sdl.Quit()
 
