@@ -411,8 +411,8 @@ end
 function M.loadWAV(file, spec, audio_buf, audio_len)
    return M.loadWAV_RW(M.RWFromFile(file, "rb"), 1, spec, audio_buf, audio_len)
 end
-function sdl.saveBMP(surface, file)
-   return sdl.saveBMP_RW(surface, sdl.RWFromFile(file, 'wb'), 1)
+function M.saveBMP(surface, file)
+   return M.saveBMP_RW(surface, M.RWFromFile(file, 'wb'), 1)
 end
 
 local callback_t
