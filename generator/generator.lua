@@ -340,14 +340,21 @@ end
 local deftab = {}
 local ffi = require"ffi"
 ffi.cdef(table.concat(cdefs,""))
-for i,v in ipairs(defines) do 
-	local lin = "static const int "..v[1].." = " .. v[2] .. ";"
-	local ok,msg = pcall(function() return ffi.cdef(lin) end)
-	if not ok then
-		print("skipping def",lin)
-		print(msg)
-	else
-		table.insert(deftab,lin)
+local wanted_strings = {"^SDL","^AUDIO_","^KMOD_","^RW_"}
+for i,v in ipairs(defines) do
+	local wanted = false
+	for _,wan in ipairs(wanted_strings) do
+		if (v[1]):match(wan) then wanted=true; break end
+	end
+	if wanted then
+		local lin = "static const int "..v[1].." = " .. v[2] .. ";"
+		local ok,msg = pcall(function() return ffi.cdef(lin) end)
+		if not ok then
+			print("skipping def",lin)
+			print(msg)
+		else
+			table.insert(deftab,lin)
+		end
 	end
 end
 
