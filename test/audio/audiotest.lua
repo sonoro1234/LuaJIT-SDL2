@@ -16,10 +16,11 @@ local function AudioInit()
 local ffi = require"ffi"
 local sin = math.sin
 local sdl = require"sdl2_ffi"
+ffi.cdef[[typedef struct {double Phase;double dPhase;} MyUdata]]
 return function(ud,stream,len)
     
     local buf = ffi.cast("float*",stream)
-    local udc = ffi.cast("struct {double Phase;double dPhase;}*",ud)
+    local udc = ffi.cast("MyUdata*",ud)
     local lenf = len/ffi.sizeof"float"
 
     for i=0,lenf-2,2 do
@@ -30,8 +31,8 @@ return function(ud,stream,len)
     end
 end
 end
-
-local ud = ffi.new"struct {double Phase;double dPhase;}"
+ffi.cdef[[typedef struct {double Phase;double dPhase;} MyUdata]]
+local ud = ffi.new"MyUdata"
 local function setFreq(ff)
     sdl.LockAudio()
     ud.dPhase = 2 * math.pi * ff / sampleHz
@@ -61,7 +62,19 @@ for i=0,sdl.getNumAudioDevices(0)-1 do
    print('device:',i,ffi.string(sdl.getAudioDeviceName(i,0)))
 end
 
-local dev = sdl.openAudioDevice(nil, 0, want, have, 0)
+local desired
+---[[
+local desID 
+while true do
+    print"select audio device"
+    desID = tonumber(io.read"*l")
+    if desID and desID >= 0 and desID < sdl.getNumAudioDevices(0) then break end
+end
+desired = ffi.string(sdl.GetAudioDeviceName(desID,0))
+print("desired",desired)
+--]]
+
+local dev = sdl.openAudioDevice(desired, 0, want, have, 0)
 print("dev",dev)
 
 if (dev == 0) then
