@@ -261,15 +261,6 @@ typedef uintptr_t(__attribute__((__cdecl__)) * pfnSDL_CurrentBeginThread)
                    (void *, unsigned, unsigned (__attribute__((__stdcall__)) *func)(void *),
                     void * , unsigned, unsigned * );
 typedef void (__attribute__((__cdecl__)) * pfnSDL_CurrentEndThread) (unsigned code);
-SDL_Thread *
-SDL_CreateThread(SDL_ThreadFunction fn, const char *name, void *data,
-                 pfnSDL_CurrentBeginThread pfnBeginThread,
-                 pfnSDL_CurrentEndThread pfnEndThread);
-SDL_Thread *
-SDL_CreateThreadWithStackSize(int ( * fn) (void *),
-                 const char *name, const size_t stacksize, void *data,
-                 pfnSDL_CurrentBeginThread pfnBeginThread,
-                 pfnSDL_CurrentEndThread pfnEndThread);
 const char * SDL_GetThreadName(SDL_Thread *thread);
 SDL_threadID SDL_ThreadID(void);
 SDL_threadID SDL_GetThreadID(SDL_Thread * thread);
@@ -3082,7 +3073,9 @@ static const int SDL_INIT_GAMECONTROLLER = 0x00002000u;
 static const int SDL_INIT_EVENTS = 0x00004000u;
 static const int SDL_INIT_SENSOR = 0x00008000u;
 static const int SDL_INIT_NOPARACHUTE = 0x00100000u;]]
-ffi.cdef[[static const int SDL_WINDOWPOS_CENTERED = SDL_WINDOWPOS_CENTERED_MASK
+ffi.cdef[[static const int SDL_WINDOWPOS_CENTERED = SDL_WINDOWPOS_CENTERED_MASK;
+SDL_Thread * SDL_CreateThread(SDL_ThreadFunction fn, const char *name, void *data);
+SDL_Thread * SDL_CreateThreadWithStackSize(int ( * fn) (void *),const char *name, const size_t stacksize, void *data);
 ]]
 local lib = ffi.load"SDL2"
 

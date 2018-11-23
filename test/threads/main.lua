@@ -26,7 +26,7 @@ local  threadReturnValue = ffi.new("int[1]")
 
 print("\nSimple SDL_CreateThread test:");
 
-local thread = sdl.createThread(sdl.MakeThreadFunc(TestThread), "TestThread",nil,nil,nil)
+local thread = sdl.createThread(sdl.MakeThreadFunc(TestThread), "TestThread",nil)
 
 if (nil == thread)  then
     local err = sdl.getError()

@@ -57,8 +57,8 @@ local  threadReturnValue = ffi.new("int[1]")
 
 print("\nSimple SDL_CreateThread test:");
 
-local thread = sdl.createThread(sdl.MakeThreadFunc(TestThread), "TestThread",data,nil,nil)
-local thread2 = sdl.createThread(sdl.MakeThreadFunc(TestThread2), "TestThread2",data,nil,nil)
+local thread = sdl.createThread(sdl.MakeThreadFunc(TestThread), "TestThread",data)
+local thread2 = sdl.createThread(sdl.MakeThreadFunc(TestThread2), "TestThread2",data)
 
 
 if (nil == thread or nil==thread2)  then

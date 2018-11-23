@@ -303,7 +303,14 @@ while true do
 			local item = txt:sub(i,e)
 			if re~=functionD_re then --skip defined functions
 				item = item:gsub("extern __attribute__%(%(dllexport%)%) ","")
-				table.insert(cdefs,item)
+				if re==function_re then
+					--skip CreateThread
+					if not item:match("CreateThread") then
+						table.insert(cdefs,item)
+					end
+				else
+					table.insert(cdefs,item)
+				end
 			end
 			--[[
 			if re==function_re and item:match"typedef" then
@@ -359,7 +366,9 @@ for i,v in ipairs(defines) do
 end
 
 local special =[[
-static const int SDL_WINDOWPOS_CENTERED = SDL_WINDOWPOS_CENTERED_MASK
+static const int SDL_WINDOWPOS_CENTERED = SDL_WINDOWPOS_CENTERED_MASK;
+SDL_Thread * SDL_CreateThread(SDL_ThreadFunction fn, const char *name, void *data);
+SDL_Thread * SDL_CreateThreadWithStackSize(int ( * fn) (void *),const char *name, const size_t stacksize, void *data);
 ]]
 
 -----------make test
