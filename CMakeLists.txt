@@ -8,7 +8,7 @@ add_subdirectory(SDL) #EXCLUDE_FROM_ALL)
 #get_directory_property(SDL2 DIRECTORY SDL DEFINITION SDL2)
 #message(STATUS "SDL2 is: ${SDL2}")
 
-install(TARGETS SDL2 RUNTIME DESTINATION .)
-INSTALL(FILES sdl2_ffi.lua DESTINATION ./lua)
-INSTALL(FILES luajit-async/lj-async/callback.lua luajit-async/lj-async/thread.lua DESTINATION ./lua/lj-async/)
+install(TARGETS SDL2 RUNTIME DESTINATION ${LUAJIT_BIN})
+INSTALL(FILES sdl2_ffi.lua DESTINATION ${LUAJIT_BIN}/lua)
+INSTALL(FILES luajit-async/lj-async/callback.lua luajit-async/lj-async/thread.lua DESTINATION ${LUAJIT_BIN}/lua/lj-async/)
 
