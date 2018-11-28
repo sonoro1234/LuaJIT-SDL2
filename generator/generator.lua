@@ -282,8 +282,9 @@ local structenum_re = "^([^;{}]-%b{}[%s%w_%(%)]*;)"
 local typedef_re = "^\n*(typedef[^;]+;)"
 local functypedef_re = "^\n*%s*(typedef[%w%s%*_]+%(%s*%*%s*[%w_]+%s*%)%s*%b()%s*;)"
 local functypedef_re = "^\n*%s*(typedef[%w%s%*_]+%([^*]+%*%s*[%w_]+%s*%)%s*%b()%s*;)"
+local functypedef_re = "^\n*%s*(typedef[%w%s%*_]+%([^*]*%*%s*[%w_]+%s*%)%s*%b()%s*;)"
 local vardef_re = "^\n*([^;{}%(%)]+;)"
-local functionD_re = "^([^;]-%b()[\n%s]*%b{})"
+local functionD_re = "^([^;{}]-%b()[\n%s]*%b{})"
 
 local res = {functypedef_re,function_re,functionD_re,struct_re,enum_re,union_re,typedef_re,vardef_re}
 --local res = {function_re,functionD_re,structenum_re,typedef_re,vardef_re}
