@@ -13,7 +13,7 @@ local window = sdl.createWindow("Hello Lena",
 
 local windowsurface = sdl.getWindowSurface(window)
 
-local image = sdl.loadBMP("lena.bmp")
+local image = sdl.LoadBMP("lena.bmp")
 
 sdl.upperBlit(image, nil, windowsurface, nil)
 

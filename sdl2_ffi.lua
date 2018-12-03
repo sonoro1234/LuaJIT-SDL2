@@ -3081,14 +3081,14 @@ local lib = ffi.load"SDL2"
 
 local M = {C=lib}
 
-function M.loadBMP(file)
-    return M.loadBMP_RW(M.RWFromFile(file, 'rb'), 1)
+function M.LoadBMP(file)
+    return M.LoadBMP_RW(M.RWFromFile(file, 'rb'), 1)
 end
-function M.loadWAV(file, spec, audio_buf, audio_len)
-   return M.loadWAV_RW(M.RWFromFile(file, "rb"), 1, spec, audio_buf, audio_len)
+function M.LoadWAV(file, spec, audio_buf, audio_len)
+   return M.LoadWAV_RW(M.RWFromFile(file, "rb"), 1, spec, audio_buf, audio_len)
 end
-function M.saveBMP(surface, file)
-   return M.saveBMP_RW(surface, M.RWFromFile(file, 'wb'), 1)
+function M.SaveBMP(surface, file)
+   return M.SaveBMP_RW(surface, M.RWFromFile(file, 'wb'), 1)
 end
 
 local callback_t
@@ -3115,9 +3115,12 @@ end
 
 setmetatable(M,{
 __index = function(t,k)
-	local str2 = "SDL_"..string.upper(k:sub(1,1))..k:sub(2)
-	local ok,ptr = pcall(function(str) return lib[str] end,str2)
-	if not ok then ok,ptr = pcall(function(str) return lib[str] end,k) end
+	local ok,ptr = pcall(function(str) return lib["SDL_"..str] end,k)
+	if not ok then ok,ptr = pcall(function(str) return lib[str] end,str2) end --some defines without SDL_
+	if not ok then --torch sdl2 calling
+		local str2 = "SDL_"..string.upper(k:sub(1,1))..k:sub(2)
+		ok,ptr = pcall(function(str) return lib[str] end,str2) 
+	end
 	if not ok then error(k.." not found") end
 	rawset(M, k, ptr)
 	return ptr

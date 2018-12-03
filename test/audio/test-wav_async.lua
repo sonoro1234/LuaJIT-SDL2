@@ -61,7 +61,7 @@ print(string.format('obtained parameters: format=%s, channels=%s freq=%s size=%s
 do
    local sounddata = ffi.new('Uint8*[1]')
    local soundlength = ffi.new('Uint32[1]')
-   local ret = sdl.loadWAV("arugh.wav", soundfile, sounddata, soundlength)
+   local ret = sdl.LoadWAV("arugh.wav", soundfile, sounddata, soundlength)
    print("ret",ret)
    if  ret == nil then
       error(string.format('could not read audio file: %s', ffi.string(sdl.getError())))
