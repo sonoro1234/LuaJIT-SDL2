@@ -20,15 +20,8 @@
 local sdl = require 'sdl2_ffi'
 local ffi = require 'ffi'
 
-local function ffistring(cd)
-	if not cd then
-		return nil
-	else
-		return ffi.string(cd)
-	end
-end
 
-ffi.cdef[[
+local ud_code = [[
 typedef struct
 {
     SDL_AudioSpec spec[1];
@@ -38,6 +31,7 @@ typedef struct
 } wave;
 ]]
 
+ffi.cdef(ud_code)
 local wave = ffi.new"wave"
 local device;
 
@@ -76,39 +70,31 @@ function reopen_audio()
 end
 
 
-local function fillerup()
-local ffi = require"ffi"
-local sdl = require"sdl2_ffi"
-local waveptr = ffi.new"Uint8[1]"
-ffi.cdef[[
-typedef struct
-{
-    SDL_AudioSpec spec[1];
-    Uint8 *sound[1];               /* Pointer to wave data */
-    Uint32 soundlen[1];            /* Length of wave data */
-    int soundpos;               /* Current play position */
-} wave;
-]]
-return function(ud,stream,len)
-
-    local waveleft;
-	local wave = ffi.cast("wave*",ud)
-    --/* Set up the pointers */
-    waveptr = wave.sound[0] + wave.soundpos;
-    waveleft = wave.soundlen[0] - wave.soundpos;
-
-    --/* Go! */
-    while (waveleft <= len) do
-        sdl.C.SDL_memcpy(stream, waveptr, waveleft);
-        stream = stream + waveleft;
-        len = len - waveleft;
-        waveptr = wave.sound[0];
-        waveleft = wave.soundlen[0];
-        wave.soundpos = 0;
+local function fillerup(udcode)
+    local ffi = require"ffi"
+    local sdl = require"sdl2_ffi"
+    local waveptr = ffi.new"Uint8[1]"
+    ffi.cdef(udcode)
+    return function(ud,stream,len)
+    
+        local waveleft;
+        local wave = ffi.cast("wave*",ud)
+        --/* Set up the pointers */
+        waveptr = wave.sound[0] + wave.soundpos;
+        waveleft = wave.soundlen[0] - wave.soundpos;
+    
+        --/* Go! */
+        while (waveleft <= len) do
+            sdl.C.SDL_memcpy(stream, waveptr, waveleft);
+            stream = stream + waveleft;
+            len = len - waveleft;
+            waveptr = wave.sound[0];
+            waveleft = wave.soundlen[0];
+            wave.soundpos = 0;
+        end
+        sdl.C.SDL_memcpy(stream, waveptr, len);
+        wave.soundpos = wave.soundpos + len;
     end
-    sdl.C.SDL_memcpy(stream, waveptr, len);
-    wave.soundpos = wave.soundpos + len;
-end
 end
 local done = false;
 
@@ -133,7 +119,7 @@ local done = false;
         quit(1);
     end
 
-    wave.spec[0].callback = sdl.MakeAudioCallback(fillerup)--;
+    wave.spec[0].callback = sdl.MakeAudioCallback(fillerup,ud_code)
     wave.spec[0].userdata = wave
 
     --/* Show the list of available drivers */
@@ -170,6 +156,3 @@ local done = false;
     sdl.FreeWAV(wave.sound);
     sdl.Quit();
     return (0);
-
-
-

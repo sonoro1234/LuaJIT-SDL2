@@ -12,26 +12,27 @@ end
 
 local sampleHz = 48000
 
-local function AudioInit()
-local ffi = require"ffi"
-local sin = math.sin
-local sdl = require"sdl2_ffi"
-ffi.cdef[[typedef struct {double Phase;double dPhase;} MyUdata]]
-return function(ud,stream,len)
-    
-    local buf = ffi.cast("float*",stream)
-    local udc = ffi.cast("MyUdata*",ud)
-    local lenf = len/ffi.sizeof"float"
+local function AudioInit(udatacode)
+	local ffi = require"ffi"
+	local sin = math.sin
+	ffi.cdef(udatacode)
+	return function(ud,stream,len)
+		
+		local buf = ffi.cast("float*",stream)
+		local udc = ffi.cast("MyUdata*",ud)
+		local lenf = len/ffi.sizeof"float"
+	
+		for i=0,lenf-2,2 do
+			local sample = sin(udc.Phase)*0.01
+			udc.Phase = udc.Phase + udc.dPhase
+			buf[i] = sample
+			buf[i+1] = sample
+		end
+	end
+end
 
-    for i=0,lenf-2,2 do
-        local sample = sin(udc.Phase)*0.01
-        udc.Phase = udc.Phase + udc.dPhase
-        buf[i] = sample
-        buf[i+1] = sample
-    end
-end
-end
-ffi.cdef[[typedef struct {double Phase;double dPhase;} MyUdata]]
+local udatacode = [[typedef struct {double Phase;double dPhase;} MyUdata]]
+ffi.cdef(udatacode)
 local ud = ffi.new"MyUdata"
 local function setFreq(ff)
     sdl.LockAudio()
@@ -40,12 +41,11 @@ local function setFreq(ff)
 end
 
 local want = ffi.new"SDL_AudioSpec[1]"
-local have = ffi.new"SDL_AudioSpec[1]"
 want[0].freq = sampleHz;
 want[0].format = sdl.AUDIO_F32;
 want[0].channels = 2;
 want[0].samples = 512 --4096;
-want[0].callback = sdl.MakeAudioCallback(AudioInit) 
+want[0].callback = sdl.MakeAudioCallback(AudioInit,udatacode) 
 want[0].userdata = ud
 
 if (sdl.init(sdl.INIT_AUDIO+sdl.INIT_TIMER) ~= 0) then
@@ -74,7 +74,7 @@ desired = ffi.string(sdl.GetAudioDeviceName(desID,0))
 print("desired",desired)
 --]]
 
-local dev = sdl.openAudioDevice(desired, 0, want, have, 0)
+local dev = sdl.openAudioDevice(desired, 0, want, nil, 0)
 print("dev",dev)
 
 if (dev == 0) then

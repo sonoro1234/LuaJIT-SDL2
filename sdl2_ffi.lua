@@ -3091,24 +3091,44 @@ function M.SaveBMP(surface, file)
    return M.SaveBMP_RW(surface, M.RWFromFile(file, 'wb'), 1)
 end
 
+--function returning from SDL_AudioSpec the kind of stream 
+--lenfac to be multiplied by len to get frames
+--nchannels
+function M.audio_buffer_type(spec)
+	local nchannels = spec.channels
+	local bitsize = bit.band(spec.format,0xff)
+	local isfloat = bit.band(spec.format,0x100)
+	local typebuffer
+	if isfloat>0 then
+		if bitsize == 32 then typebuffer = "float"
+		else error"unknown float buffer type" end
+	else
+		if bitsize == 16 then typebuffer = "short"
+		elseif bitsize == 32 then typebuffer = "int"
+		else error"unknown buffer type" end
+	end
+	local lenfac = 1/(ffi.sizeof(typebuffer)*nchannels)
+	return typebuffer,lenfac,nchannels
+end
+
 local callback_t
 local callbacks_anchor = {}
-function M.MakeAudioCallback(func)
+function M.MakeAudioCallback(func, ...)
 	if not callback_t then
 		local CallbackFactory = require "lj-async.callback"
 		callback_t = CallbackFactory("void(*)(void*,uint8_t*,int)") --"SDL_AudioCallback"
 	end
-	local cb = callback_t(func)
+	local cb = callback_t(func, ...)
 	table.insert(callbacks_anchor,cb)
 	return cb:funcptr()
 end
 local threadfunc_t
-function M.MakeThreadFunc(func)
+function M.MakeThreadFunc(func, ...)
 	if not threadfunc_t then
 		local CallbackFactory = require "lj-async.callback"
 		threadfunc_t = CallbackFactory("int(*)(void*)")
 	end
-	local cb = threadfunc_t(func)
+	local cb = threadfunc_t(func, ...)
 	table.insert(callbacks_anchor,cb)
 	return cb:funcptr()
 end
