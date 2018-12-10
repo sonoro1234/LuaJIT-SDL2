@@ -3091,9 +3091,14 @@ function M.SaveBMP(surface, file)
    return M.SaveBMP_RW(surface, M.RWFromFile(file, 'wb'), 1)
 end
 
---function returning from SDL_AudioSpec the kind of stream 
---lenfac to be multiplied by len to get frames
---nchannels
+local AudioSpecs = {}
+AudioSpecs.__index = AudioSpecs
+function AudioSpecs:print()
+	print(string.format('spec parameters: \nfreq=%s, \nformat=%s, \nformat bits=%s, \nis float %s,\nendianess=%d, \nis signed %s, \nchannels=%s \nsilence=%s, \nsamples=%s bytes,\nsize=%s bytes', self.freq,self.format, bit.band(self.format, 0xff),tostring(bit.band(0x1000,self.format)>0), bit.band(0x100,self.format) , tostring(bit.band(0xF000,self.format)>0),self.channels,  self.silence,  self.samples,  self.size))
+end
+ffi.metatype("SDL_AudioSpec",AudioSpecs)
+
+--function returning typebuffer,lenfac,nchannels from spec
 function M.audio_buffer_type(spec)
 	local nchannels = spec.channels
 	local bitsize = bit.band(spec.format,0xff)
@@ -3101,15 +3106,16 @@ function M.audio_buffer_type(spec)
 	local typebuffer
 	if isfloat>0 then
 		if bitsize == 32 then typebuffer = "float"
-		else error"unknown float buffer type" end
+		else error("unknown float buffer type bits:"..tostring(bitsize)) end
 	else
 		if bitsize == 16 then typebuffer = "short"
 		elseif bitsize == 32 then typebuffer = "int"
-		else error"unknown buffer type" end
+		else error("unknown buffer type bits:"..tostring(bitsize)) end
 	end
 	local lenfac = 1/(ffi.sizeof(typebuffer)*nchannels)
 	return typebuffer,lenfac,nchannels
 end
+
 
 local callback_t
 local callbacks_anchor = {}

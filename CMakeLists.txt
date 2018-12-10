@@ -9,6 +9,7 @@ add_subdirectory(SDL) #EXCLUDE_FROM_ALL)
 #message(STATUS "SDL2 is: ${SDL2}")
 
 install(TARGETS SDL2 RUNTIME DESTINATION ${LUAJIT_BIN})
-INSTALL(FILES sdl2_ffi.lua DESTINATION ${LUAJIT_BIN}/lua)
+INSTALL(FILES sdl2_ffi.lua sdlAudioPlayer.lua DESTINATION ${LUAJIT_BIN}/lua)
 INSTALL(FILES luajit-async/lj-async/callback.lua luajit-async/lj-async/thread.lua DESTINATION ${LUAJIT_BIN}/lua/lj-async/)
+
 
