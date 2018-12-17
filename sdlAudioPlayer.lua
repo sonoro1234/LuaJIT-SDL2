@@ -93,9 +93,9 @@ local function AudioInit(audioplayer,audioplayercdef,postfunc,postdata,postcode)
             else break end
         end
         postfuncS(streamf,lenf,streamTime)
-        if audioplayer.recordfile.sf~= nil then
-			audioplayer.recordfile[writefunc](audioplayer.recordfile,streamf,lenf)
-		end
+        if audioplayer.recordfile~= nil then
+            audioplayer.recordfile[writefunc](audioplayer.recordfile,streamf,lenf)
+        end
         audioplayer.streamTime = streamTime + lenf*timefac
     end
 end
@@ -105,7 +105,7 @@ local audioplayercdef = [[
 typedef struct sf_node sf_node;
 struct sf_node
 {
-    SNDFILE_ref sf;
+    SNDFILE_ref *sf;
     double level;
     double timeoffset;
     sf_node *next;
@@ -116,7 +116,7 @@ typedef struct audioplayer
     SDL_AudioSpec wanted_spec[1];
     SDL_AudioSpec obtained_spec[1];
     sf_node root;
-    SNDFILE_ref recordfile;
+    SNDFILE_ref *recordfile;
     double streamTime;
     SDL_AudioDeviceID device;
 } audioplayer;
@@ -146,14 +146,15 @@ function AudioPlayer_mt:__new(t,postfunc,postdata,postcode)
     return ap
 end
 function AudioPlayer_mt:close()
+    ffi.gc(self,nil)
     for node in self:nodes() do
         node.sf:close()
     end
-    if self.recordfile.sf ~=nil then
-		self.recordfile:close()
-	end
+    if self.recordfile ~=nil then
+        self.recordfile:close()
+    end
     sdl.CloseAudioDevice(self.device);
-    ffi.gc(self,nil)
+
 end
 function AudioPlayer_mt:get_stream_time()
     sdl.LockAudioDevice(self.device)
@@ -217,11 +218,11 @@ function AudioPlayer_mt:insert(filename,level,timeoffset)
 end
 local recordfile_anchor
 function AudioPlayer_mt:record(filename,format)
-	assert(self.recordfile.sf==nil,"AudioPlayer already has recording file.")
-	local sf = sndf.Sndfile(filename,"w",self.obtained_spec[0].freq,self.obtained_spec[0].channels,format)
-	recordfile_anchor = sf
-	self.recordfile = sf
-	return sf
+    assert(self.recordfile==nil,"AudioPlayer already has recording file.")
+    local sf = sndf.Sndfile(filename,"w",self.obtained_spec[0].freq,self.obtained_spec[0].channels,format)
+    recordfile_anchor = sf
+    self.recordfile = sf
+    return sf
 end
 function AudioPlayer_mt:erase(node)
     self:lock()
