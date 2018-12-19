@@ -58,14 +58,15 @@ local function AudioInit(audioplayer,audioplayercdef,postfunc,postdata,postcode)
         postfuncS = postfunc(postdata,postcode,typebuffer,nchannels)
     end
     setupvalues(postfunc)
-
+    local ancla_resam = {}
+    local floor = math.floor
     -- this is the real callback
     return function(ud,stream,len)
         if not spec then setspecs() end
         
         local streamTime = audioplayer.streamTime
         local lenf = len*lenfac
-        assert(lenf == math.floor(lenf))
+        assert(lenf == floor(lenf))
         local windowsize = lenf * timefac
         sdl.memset(stream, 0, len)
         local streamf = ffi.cast(bufpointer,stream)
@@ -75,13 +76,22 @@ local function AudioInit(audioplayer,audioplayercdef,postfunc,postdata,postcode)
             if sf_node.next~=nil then
                 sf_node = sf_node.next[0]
                 local sf = sf_node.sf
+                if sf.resampler~=nil then
+                    sf = sf.resampler
+                elseif sf:samplerate()~=spec.freq then
+                    local resamp = sf:resampler_create()
+                    resamp:set_ratio(spec.freq/sf:samplerate())
+                    table.insert(ancla_resam,resamp)
+                    sf = resamp
+                end
                 if sf_node.timeoffset <= streamTime then --already setted 
                     sf[readfunc](sf,readbuffer,lenf)
                     for i=0,(lenf*nchannels)-1 do
                         streamf[i] = streamf[i] + readbuffer[i]*sf_node.level
                     end
                 elseif sf_node.timeoffset < streamTime + windowsize then --set it here
-                    local frames = (streamTime + windowsize - sf_node.timeoffset) * spec.freq
+                    --print"sett--------------------------------"
+                    local frames = floor((streamTime + windowsize - sf_node.timeoffset) * spec.freq)
                     local res = sf:seek( 0, sndf.SEEK_SET)
                     sf[readfunc](sf,readbuffer,frames)
                     local j=0
@@ -157,25 +167,28 @@ function AudioPlayer_mt:close()
 
 end
 function AudioPlayer_mt:get_stream_time()
-    sdl.LockAudioDevice(self.device)
+    self:lock()
     local ret = self.streamTime
-    sdl.UnlockAudioDevice(self.device)
+    self:unlock()
     return ret
 end
 function AudioPlayer_mt:set_stream_time(time)
-    sdl.LockAudioDevice(self.device)
+    self:lock()
     self.streamTime = time
     local sf_node = self.root
     while true do
         sf_node = sf_node.next[0]
         if sf_node == nil then break end
+        local sf = sf_node.sf
+        if sf.resampler~=nil then
+            sf = sf.resampler
+        end
         if sf_node.timeoffset <= time then
             local frames = math.floor((time - sf_node.timeoffset) * sf_node.sf:samplerate())
-            local res = sf_node.sf:seek( frames, sndf.SEEK_SET) ;
-            --if res==-1 then print("bad seeking in ",sf_node.sf) end
+            local res = sf:seek( frames, sndf.SEEK_SET) ;
         end
     end
-    sdl.UnlockAudioDevice(self.device)
+    self:unlock()
 end
 function AudioPlayer_mt:lock()
     sdl.LockAudioDevice(self.device)
@@ -199,8 +212,8 @@ function AudioPlayer_mt:insert(filename,level,timeoffset)
     timeoffset = timeoffset or 0
     local sf = sndf.Sndfile(filename)
     --check channels and samplerate
-    if sf:samplerate() ~= self.obtained_spec[0].freq or
-        sf:channels() ~= self.obtained_spec[0].channels then
+    if sf:channels() ~= self.obtained_spec[0].channels then
+        print(filename,"has wrong number of channels",sf:channels())
         sf:close()
         return nil
     end

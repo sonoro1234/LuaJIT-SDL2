@@ -1,4 +1,4 @@
-
+--jit.off(true,true)
 local sdl = require 'sdl2_ffi'
 local ffi = require 'ffi'
 --https://github.com/sonoro1234/LuaJIT-libsndfile
@@ -74,12 +74,12 @@ audioplayer.obtained_spec[0]:print()
 ----------------------------------------------------
 
 --insert 3 files
---level 0.1, timeoffset 0
-if not audioplayer:insert(filename,0.1,0) then error"failed insert" end
+--level 1, timeoffset 0
+if not audioplayer:insert(filename,1,0) then error"failed insert" end
 --will not load, diferent samplerate and channels
-local node2 = audioplayer:insert("arugh.wav",0.1,0.75)
-assert(not node2)
-audioplayer:insert(filename,0.1,1.5)
+local node2 = audioplayer:insert("arughSt.wav",0.5,0.75)
+
+audioplayer:insert(filename,1,2)
 
 for node in audioplayer:nodes() do
     print("node",node.sf)
@@ -107,6 +107,18 @@ sdl.gL_SetAttribute(sdl.GL_CONTEXT_MINOR_VERSION, 2);
 
 local window = sdl.createWindow("ImGui SDL2+OpenGL3 example", sdl.WINDOWPOS_CENTERED, sdl.WINDOWPOS_CENTERED, 700, 500, sdl.WINDOW_OPENGL+sdl.WINDOW_RESIZABLE);
 
+        renderer = sdl.CreateRenderer(window, -1, 0);
+
+        --/* Select the color for drawing. It is set to red here. */
+        sdl.SetRenderDrawColor(renderer, 255, 0, 0, 255);
+
+        -- /* Clear the entire screen to our selected color. */
+        -- SDL_RenderClear(renderer);
+
+        -- /* Up until now everything was drawn behind the scenes.
+           -- This will show the new, red contents of the window. */
+        -- SDL_RenderPresent(renderer);
+
 local gl_context = sdl.gL_CreateContext(window);
 sdl.gL_SetSwapInterval(1); -- Enable vsync
 
@@ -130,7 +142,8 @@ while (not done) do
             done = true;
         end
     end
-
+	sdl.RenderClear(renderer);
+	--sdl.RenderPresent(renderer)
     sdl.gL_MakeCurrent(window, gl_context);
 
 
