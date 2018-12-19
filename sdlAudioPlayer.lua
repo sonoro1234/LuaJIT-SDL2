@@ -170,7 +170,7 @@ function AudioPlayer_mt:set_stream_time(time)
         sf_node = sf_node.next[0]
         if sf_node == nil then break end
         if sf_node.timeoffset <= time then
-            local frames = math.floor((time - sf_node.timeoffset) * self.obtained_spec[0].freq)
+            local frames = math.floor((time - sf_node.timeoffset) * sf_node.sf:samplerate())
             local res = sf_node.sf:seek( frames, sndf.SEEK_SET) ;
             --if res==-1 then print("bad seeking in ",sf_node.sf) end
         end

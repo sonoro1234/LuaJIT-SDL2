@@ -43,7 +43,7 @@ end
 -----------------------main--------------------------------------
 
 local ig = require"imgui.sdl"
-
+ig.use_nonUDT2()
 local filename = "african_roomS.wav";
 --local filename = "arugh.wav" --"sample.wav";
 
@@ -65,7 +65,7 @@ local audioplayer,err = AudioPlayer({
     delayfunc,fxdata,delaycdef)
 
 if not audioplayer then print(err) end
-print("audioplayer.recordfile",audioplayer.recordfile)
+
 print"--------------wanted"
 audioplayer.wanted_spec[0]:print()
 print("---------------opened device",device)
@@ -166,7 +166,7 @@ while (not done) do
         audioplayer.obtained_spec[0]:print()
     end
 	
-	if audioplayer.recordfile.sf~=nil then
+	if audioplayer.recordfile~=nil then
 	if ig.Button("close record") then
         audioplayer.recordfile:close()
     end
