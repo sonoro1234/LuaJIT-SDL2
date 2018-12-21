@@ -58,7 +58,7 @@ local function AudioInit(audioplayer,audioplayercdef,postfunc,postdata,postcode)
         postfuncS = postfunc(postdata,postcode,typebuffer,nchannels)
     end
     setupvalues(postfunc)
-    local ancla_resam = {}
+
     local floor = math.floor
     -- this is the real callback
     return function(ud,stream,len)
@@ -70,6 +70,7 @@ local function AudioInit(audioplayer,audioplayercdef,postfunc,postdata,postcode)
         local windowsize = lenf * timefac
         sdl.memset(stream, 0, len)
         local streamf = ffi.cast(bufpointer,stream)
+        ffi.fill(stream,len)
         local readbuffer = ffi.new(typebuffer.."[?]",lenf*nchannels)
         local sf_node = root
         while true do
@@ -78,30 +79,29 @@ local function AudioInit(audioplayer,audioplayercdef,postfunc,postdata,postcode)
                 local sf = sf_node.sf
                 if sf.resampler~=nil then
                     sf = sf.resampler
-                elseif sf:samplerate()~=spec.freq then
-                    local resamp = sf:resampler_create()
-                    resamp:set_ratio(spec.freq/sf:samplerate())
-                    table.insert(ancla_resam,resamp)
-                    sf = resamp
                 end
+
                 if sf_node.timeoffset <= streamTime then --already setted 
-                    sf[readfunc](sf,readbuffer,lenf)
-                    for i=0,(lenf*nchannels)-1 do
+                    local readen = tonumber(sf[readfunc](sf,readbuffer,lenf))
+                    for i=0,(readen*nchannels)-1 do
                         streamf[i] = streamf[i] + readbuffer[i]*sf_node.level
                     end
                 elseif sf_node.timeoffset < streamTime + windowsize then --set it here
                     --print"sett--------------------------------"
                     local frames = floor((streamTime + windowsize - sf_node.timeoffset) * spec.freq)
                     local res = sf:seek( 0, sndf.SEEK_SET)
-                    sf[readfunc](sf,readbuffer,frames)
+                    local readen = tonumber(sf[readfunc](sf,readbuffer,frames))
                     local j=0
-                    for i=(lenf - frames)*nchannels,(lenf*nchannels)-1 do
+                    for i=(lenf - frames)*nchannels,((readen+lenf-frames)*nchannels)-1 do
+                    --for i=(lenf - frames)*nchannels,((lenf)*nchannels)-1 do
                         streamf[i] = streamf[i] + readbuffer[j]*sf_node.level
                         j = j + 1
                     end
                 end
             else break end
+            
         end
+
         postfuncS(streamf,lenf,streamTime)
         if audioplayer.recordfile~= nil then
             audioplayer.recordfile[writefunc](audioplayer.recordfile,streamf,lenf)
@@ -129,11 +129,15 @@ typedef struct audioplayer
     SNDFILE_ref *recordfile;
     double streamTime;
     SDL_AudioDeviceID device;
+    src_callback_t resampler_input_cb;
 } audioplayer;
 ]]
 
-ffi.cdef(audioplayercdef)
 
+ffi.cdef(audioplayercdef)
+local ap_resampler_input_cb
+local ancla_nodes = {}
+local ancla_resam = {}
 local AudioPlayer_mt = {}
 AudioPlayer_mt.__index = AudioPlayer_mt
 function AudioPlayer_mt:__new(t,postfunc,postdata,postcode)
@@ -145,8 +149,13 @@ function AudioPlayer_mt:__new(t,postfunc,postdata,postcode)
     spec.format = t.format or 0
     spec.channels = t.channels or 2
     spec.samples = t.samples or 0
-    spec.callback = sdl.MakeAudioCallback(AudioInit,ap,audioplayercdef,postfunc,postdata,postcode)
-
+    local callback, cbmaker = sdl.MakeAudioCallback(AudioInit,ap,audioplayercdef,postfunc,postdata,postcode)
+    spec.callback = callback
+    ap_resampler_input_cb = cbmaker:additional_cb(function()
+        local sndf = require"sndfile_ffi"
+        return sndf.resampler_input_cb
+    end,"src_callback_t")
+    ap.resampler_input_cb = ap_resampler_input_cb
     ap.device = sdl.OpenAudioDevice(t.device, sdl.FALSE, ap.wanted_spec, ap.obtained_spec,sdl.AUDIO_ALLOW_FORMAT_CHANGE);
     if ap.device == 0 then
         local err = sdl.GetError()
@@ -206,7 +215,7 @@ function AudioPlayer_mt:stop()
     sdl.PauseAudioDevice(self.device, 1)
     --sdl.UnlockAudio()
 end
-local ancla_nodes = {}
+
 function AudioPlayer_mt:insert(filename,level,timeoffset)
     level = level or 1
     timeoffset = timeoffset or 0
@@ -217,8 +226,18 @@ function AudioPlayer_mt:insert(filename,level,timeoffset)
         sf:close()
         return nil
     end
+    local selfkey = tostring(self)
+    if sf:samplerate() ~= self.obtained_spec[0].freq then
+        local resamp = sf:resampler_create(nil, nil,ap_resampler_input_cb)
+        resamp:set_ratio(self.obtained_spec[0].freq/sf:samplerate())
+        local anchor = ancla_resam[selfkey] or {}
+        ancla_resam[selfkey] = anchor
+        table.insert(anchor,resamp)
+    end
     local node = ffi.new"sf_node[1]"
-    table.insert(ancla_nodes,node)
+    local anchor = ancla_nodes[selfkey] or {}
+    ancla_nodes[selfkey] = anchor
+    table.insert(anchor,node)
     node[0].sf = sf
     node[0].level = level
     node[0].timeoffset = timeoffset
@@ -240,15 +259,17 @@ end
 function AudioPlayer_mt:erase(node)
     self:lock()
     local sf_node = self.root
+    local anchor = ancla_nodes[tostring(self)]
+    assert(anchor)
     while true do
         local prev = sf_node
         sf_node = sf_node.next[0]
         if sf_node == nil then break end
         if sf_node == node then
             --remove from ancla_nodes
-            for i,nodeptr in ipairs(ancla_nodes) do
+            for i,nodeptr in ipairs(anchor) do
                 if nodeptr[0]==node then
-                    table.remove(ancla_nodes,i)
+                    table.remove(anchor,i)
                     break
                 end
             end

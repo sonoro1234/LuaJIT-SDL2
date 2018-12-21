@@ -1,4 +1,5 @@
 --jit.off(true,true)
+
 local sdl = require 'sdl2_ffi'
 local ffi = require 'ffi'
 --https://github.com/sonoro1234/LuaJIT-libsndfile
@@ -6,6 +7,9 @@ local sndf = require"sndfile_ffi"
 
 local AudioPlayer = require"sdlAudioPlayer"
 
+ffi.cdef[[int snprintf ( char * s, size_t n, const char * format, ... );
+int sprintf ( char * str, const char * format, ... );
+]]
 --------------------------will run in audio thread after playing files
 local delaycdef = [[typedef struct delay{double feedback[1];double delay[1];double maxdelay;} delay]]
 ffi.cdef(delaycdef)
@@ -75,10 +79,12 @@ audioplayer.obtained_spec[0]:print()
 
 --insert 3 files
 --level 1, timeoffset 0
-if not audioplayer:insert(filename,1,0) then error"failed insert" end
+audioplayer:insert(filename,1,0.0) 
+audioplayer:insert("arughSt.wav",1,0.01)
 --will not load, diferent samplerate and channels
-local node2 = audioplayer:insert("arughSt.wav",0.5,0.75)
-
+local node2 = audioplayer:insert("arughSt.wav",0,0.75)
+--audioplayer:insert("arughSt.wav",0.7,2.75)
+--audioplayer:insert("arughSt.wav",0,4.75)
 audioplayer:insert(filename,1,2)
 
 for node in audioplayer:nodes() do
@@ -90,7 +96,7 @@ print"after erase"
 for node in audioplayer:nodes() do
     print("node",node.sf)
 end
-
+--collectgarbage"stop"
 --audioplayer:record("recording.wav",sndf.SF_FORMAT_WAV+sndf.SF_FORMAT_FLOAT)
 print("audioplayer.recordfile",audioplayer.recordfile)
 
@@ -168,22 +174,52 @@ while (not done) do
 
     if ig.Button("nodes") then
         print"----------nodes---------------"
-        print(audioplayer.root.next[0])
+        print(audioplayer.root,tonumber(audioplayer.root),audioplayer.root.next[0])
         for node in audioplayer:nodes() do
             print(node,node.next[0],node.level,node.timeoffset)
             print(node.sf,node.sf:samplerate(),node.sf:channels(),node.sf:format())
         end
     end
 
-    if ig.Button("specs") then
-        audioplayer.obtained_spec[0]:print()
+    if ig.Button("insert") then
+        audioplayer:insert(filename,1,streamtime[0])
     end
-	
+	ig.SameLine()
+    if ig.Button("insert arugh") then
+        audioplayer:insert("arughSt.wav",0.5,streamtime[0])
+    end
 	if audioplayer.recordfile~=nil then
+	ig.SameLine()
 	if ig.Button("close record") then
         audioplayer.recordfile:close()
     end
 	end
+
+---[[
+
+	local format = string.format
+	local cbuf = ffi.new"char[201]"
+	local level = ffi.new("float[1]")
+	ig.PushItemWidth(80)
+    for node in audioplayer:nodes() do
+		ig.PushIDPtr(node)
+		ffi.C.sprintf(cbuf,"%p",node)
+		ig.Text(cbuf);ig.SameLine()
+		level[0] = node.level
+		if ig.SliderFloat("level",level,0,1) then
+			node.level = level[0]
+		end
+		ig.SameLine();ig.Text(format("time:%4.2f",node.timeoffset))
+		ig.SameLine();ig.Text(format("srate:%4.0f",node.sf:samplerate()));ig.SameLine();
+
+		if ig.SmallButton("delete") then
+			audioplayer:erase(node)
+		end
+		ig.PopID()
+    end
+	ig.PopItemWidth()
+
+--]]
     -- end audio gui
     ig_Impl:Render()
     sdl.gL_SwapWindow(window);

@@ -3118,15 +3118,15 @@ end
 
 
 local callback_t
-local callbacks_anchor = {}
+local states_anchor = {}
 function M.MakeAudioCallback(func, ...)
 	if not callback_t then
 		local CallbackFactory = require "lj-async.callback"
 		callback_t = CallbackFactory("void(*)(void*,uint8_t*,int)") --"SDL_AudioCallback"
 	end
 	local cb = callback_t(func, ...)
-	table.insert(callbacks_anchor,cb)
-	return cb:funcptr()
+	table.insert(states_anchor,cb)
+	return cb:funcptr(), cb
 end
 local threadfunc_t
 function M.MakeThreadFunc(func, ...)
@@ -3135,8 +3135,8 @@ function M.MakeThreadFunc(func, ...)
 		threadfunc_t = CallbackFactory("int(*)(void*)")
 	end
 	local cb = threadfunc_t(func, ...)
-	table.insert(callbacks_anchor,cb)
-	return cb:funcptr()
+	table.insert(states_anchor,cb)
+	return cb:funcptr(), cb
 end
 
 setmetatable(M,{
