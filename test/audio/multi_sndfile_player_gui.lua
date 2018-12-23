@@ -6,7 +6,7 @@ local ffi = require 'ffi'
 local sndf = require"sndfile_ffi"
 
 local AudioPlayer = require"sdlAudioPlayer"
-
+--to show pointer values
 ffi.cdef[[int snprintf ( char * s, size_t n, const char * format, ... );
 int sprintf ( char * str, const char * format, ... );
 ]]
@@ -36,13 +36,6 @@ local function delayfunc(data,code,typebuffer,nchannels)
     end
 end
 
-local function ffi_string(cd)
-    if not cd then
-        return nil
-    else
-        return ffi.string(cd)
-    end
-end
 ------------------------------------------------------------------------
 -----------------------main--------------------------------------
 
@@ -96,7 +89,7 @@ print"after erase"
 for node in audioplayer:nodes() do
     print("node",node.sf)
 end
---collectgarbage"stop"
+
 --audioplayer:record("recording.wav",sndf.SF_FORMAT_WAV+sndf.SF_FORMAT_FLOAT)
 print("audioplayer.recordfile",audioplayer.recordfile)
 
@@ -113,17 +106,6 @@ sdl.gL_SetAttribute(sdl.GL_CONTEXT_MINOR_VERSION, 2);
 
 local window = sdl.createWindow("ImGui SDL2+OpenGL3 example", sdl.WINDOWPOS_CENTERED, sdl.WINDOWPOS_CENTERED, 700, 500, sdl.WINDOW_OPENGL+sdl.WINDOW_RESIZABLE);
 
-        renderer = sdl.CreateRenderer(window, -1, 0);
-
-        --/* Select the color for drawing. It is set to red here. */
-        sdl.SetRenderDrawColor(renderer, 255, 0, 0, 255);
-
-        -- /* Clear the entire screen to our selected color. */
-        -- SDL_RenderClear(renderer);
-
-        -- /* Up until now everything was drawn behind the scenes.
-           -- This will show the new, red contents of the window. */
-        -- SDL_RenderPresent(renderer);
 
 local gl_context = sdl.gL_CreateContext(window);
 sdl.gL_SetSwapInterval(1); -- Enable vsync
@@ -148,8 +130,7 @@ while (not done) do
             done = true;
         end
     end
-	sdl.RenderClear(renderer);
-	--sdl.RenderPresent(renderer)
+
     sdl.gL_MakeCurrent(window, gl_context);
 
 
