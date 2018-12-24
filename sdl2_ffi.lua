@@ -2,9 +2,9 @@ local ffi = require"ffi"
 
 --uncomment to debug cdef calls
 ---[[
-local ffi_cdef = ffi.cdef
-ffi.cdef = function(code)
-    local ret,err = pcall(ffi_cdef,code)
+--local ffi_cdef = ffi.cdef
+local ffi_cdef = function(code)
+    local ret,err = pcall(ffi.cdef,code)
     if not ret then
         local lineN = 1
         for line in code:gmatch("([^\n\r]*)\r?\n") do
@@ -16,7 +16,7 @@ ffi.cdef = function(code)
     end
 end
 --]]
-ffi.cdef[[
+ffi_cdef[[
 const char * SDL_GetPlatform (void);
 typedef enum
 {
@@ -2825,7 +2825,7 @@ int SDL_InitSubSystem(Uint32 flags);
 void SDL_QuitSubSystem(Uint32 flags);
 Uint32 SDL_WasInit(Uint32 flags);
 void SDL_Quit(void);]]
-ffi.cdef[[static const int SDL_AUDIO_DRIVER_WASAPI = 1;
+ffi_cdef[[static const int SDL_AUDIO_DRIVER_WASAPI = 1;
 static const int SDL_AUDIO_DRIVER_DSOUND = 1;
 static const int SDL_AUDIO_DRIVER_WINMM = 1;
 static const int SDL_AUDIO_DRIVER_DISK = 1;
@@ -3073,7 +3073,7 @@ static const int SDL_INIT_GAMECONTROLLER = 0x00002000u;
 static const int SDL_INIT_EVENTS = 0x00004000u;
 static const int SDL_INIT_SENSOR = 0x00008000u;
 static const int SDL_INIT_NOPARACHUTE = 0x00100000u;]]
-ffi.cdef[[static const int SDL_WINDOWPOS_CENTERED = SDL_WINDOWPOS_CENTERED_MASK;
+ffi_cdef[[static const int SDL_WINDOWPOS_CENTERED = SDL_WINDOWPOS_CENTERED_MASK;
 SDL_Thread * SDL_CreateThread(SDL_ThreadFunction fn, const char *name, void *data);
 SDL_Thread * SDL_CreateThreadWithStackSize(int ( * fn) (void *),const char *name, const size_t stacksize, void *data);
 ]]
