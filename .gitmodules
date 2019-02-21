@@ -1,6 +1,3 @@
 [submodule "SDL"]
 	path = SDL
 	url = https://github.com/SDL-mirror/SDL.git
-[submodule "luajit-async"]
-	path = luajit-async
-	url = https://github.com/sonoro1234/luajit-async/
