@@ -5,9 +5,11 @@ Set CMake LUAJIT_BIN to the LuaJIT directory for installing.
 
 See test folder examples for usage
 
-luajit-async (taken from https://github.com/ColonelThirtyTwo/luajit-async) will be also installed for providing lua functions that can be called from another thread (sdl.MakeAudioCallback and sdl.MakeThreadFunc)
+luajit-async (taken from https://github.com/sonoro1234/luajit-async) needs to be installed for providing lua functions that can be called from another thread (sdl.MakeAudioCallback and sdl.MakeThreadFunc).
 
 This repo is used in https://github.com/sonoro1234/LuaJIT-ImGui where you get very usefull GUI widgets.
+
+All above can be found at https://github.com/sonoro1234/anima
 
 # sdlAudioPlayer
 
