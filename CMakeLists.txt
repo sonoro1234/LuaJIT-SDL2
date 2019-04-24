@@ -10,7 +10,8 @@ add_subdirectory(SDL EXCLUDE_FROM_ALL)
 add_custom_target(snd2_ffi ALL)
 add_dependencies(snd2_ffi SDL2)
 
-install(TARGETS SDL2 RUNTIME DESTINATION ${LUAJIT_BIN})
+install(TARGETS SDL2 RUNTIME DESTINATION ${LUAJIT_BIN}
+					LIBRARY DESTINATION ${LUAJIT_BIN})
 INSTALL(FILES sdl2_ffi.lua sdlAudioPlayer.lua DESTINATION ${LUAJIT_BIN}/lua)
 
 
