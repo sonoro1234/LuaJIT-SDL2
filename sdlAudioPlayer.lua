@@ -154,7 +154,7 @@ function AudioPlayer_mt:__new(t,postfunc,postdata,postcode)
     ap_resampler_input_cb = cbmaker:additional_cb(function()
         local sndf = require"sndfile_ffi"
         return sndf.resampler_input_cb
-    end,"src_callback_t")
+    end,"long (*) (void *cb_data, float **data)")--"src_callback_t")
     ap.resampler_input_cb = ap_resampler_input_cb
     ap.device = sdl.OpenAudioDevice(t.device, sdl.FALSE, ap.wanted_spec, ap.obtained_spec,sdl.AUDIO_ALLOW_FORMAT_CHANGE);
     if ap.device == 0 then
