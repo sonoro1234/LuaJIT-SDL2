@@ -4,28 +4,6 @@ local sndf = require"sndfile_ffi"
 
 --------------will run in a same thread and different lua state and return the callback
 local function AudioInit(audioplayer,audioplayercdef,postfunc,postdata,postcode)
-    --postfunc will get upvalues from AudioInit (ffi,spec)
-    local function setupvalues(func)
-        for i=1,math.huge do
-            local name,val =debug.getupvalue(func,i)
-            if not name then break end
-            if not val then
-                --print("searching",name)
-                local found = false
-                for j=1,math.huge do
-                    local name2,val2 = debug.getlocal(2,j)
-                    if not name2 then break end
-                    --print("found",name2)
-                    if name == name2 then
-                        debug.setupvalue(func,i,val2)
-                        found = true
-                        break
-                    end
-                end
-                if not found then error("value for upvalue "..name.." not found") end
-            end
-        end
-    end
 
     local ffi = require"ffi"
     local sdl = require"sdl2_ffi"
@@ -43,25 +21,25 @@ local function AudioInit(audioplayer,audioplayercdef,postfunc,postdata,postcode)
     local readfunc,writefunc
     local postfuncS
     
-    --wait until device is opened
+    --wait until device is opened to define locals declared above
     local function setspecs()
     
         spec = audioplayer.obtained_spec[0]
-        
+        --print("spec.format", spec.format, spec.channels)
         typebuffer,lenfac,nchannels = sdl.audio_buffer_type(spec)
         timefac = 1/spec.freq
         bufpointer = typebuffer.."*"
         readfunc = "readf_"..typebuffer
         writefunc = "writef_"..typebuffer
 
-        postfunc = setfenv(postfunc,setmetatable({spec=spec,ffi=ffi,sdl=sdl},{__index=_G}))
-        postfuncS = postfunc(postdata,postcode,typebuffer,nchannels)
+        postfuncS = postfunc(postdata,postcode,typebuffer,nchannels,spec)
+
     end
-    setupvalues(postfunc)
 
     local floor = math.floor
     -- this is the real callback
     return function(ud,stream,len)
+
         if not spec then setspecs() end
         
         local streamTime = audioplayer.streamTime

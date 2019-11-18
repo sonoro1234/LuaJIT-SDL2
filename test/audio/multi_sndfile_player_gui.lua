@@ -15,7 +15,8 @@ local delaycdef = [[typedef struct delay{double feedback[1];double delay[1];doub
 ffi.cdef(delaycdef)
 local fxdata = ffi.new("delay",{ffi.new("double[1]",0.0),ffi.new("double[1]",1),2})
 
-local function delayfunc(data,code,typebuffer,nchannels)
+local function delayfunc(data,code,typebuffer,nchannels,spec)
+    local ffi = require"ffi"
     ffi.cdef(code)
     data = ffi.cast("delay*",data)
     local index = 0
@@ -40,7 +41,7 @@ end
 -----------------------main--------------------------------------
 
 local ig = require"imgui.sdl"
-ig.use_nonUDT2()
+
 local filename = "african_roomS.wav";
 --local filename = "arugh.wav" --"sample.wav";
 
