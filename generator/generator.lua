@@ -48,7 +48,11 @@ for k,v in ipairs(itemsarr) do
 		if v.re_name=="function_re" then
 			--skip CreateThread
 			if not v.item:match("CreateThread") then
-				table.insert(cdefs,v.item)
+				local item = v.item
+				if item:match("^%s*extern") then
+					item = item:gsub("^%s*extern%s*(.+)","\n%1")
+				end
+				table.insert(cdefs,item)
 			end
 		else
 			table.insert(cdefs,v.item)
@@ -77,11 +81,27 @@ for i,v in ipairs(defines) do
 	end
 end
 
+
+local special_win = [[
+typedef unsigned long (__cdecl *pfnSDL_CurrentBeginThread) (void *, unsigned,
+        unsigned (__stdcall *func)(void *), void *arg,
+        unsigned, unsigned *threadID);
+typedef void (__cdecl *pfnSDL_CurrentEndThread)(unsigned code);
+
+ uintptr_t __cdecl _beginthreadex(void *_Security,unsigned _StackSize,unsigned (__stdcall *_StartAddress) (void *),void *_ArgList,unsigned _InitFlag,unsigned *_ThrdAddr);
+   void __cdecl _endthreadex(unsigned _Retval);
+  
+static const int SDL_WINDOWPOS_CENTERED = SDL_WINDOWPOS_CENTERED_MASK;
+SDL_Thread * SDL_CreateThread(SDL_ThreadFunction fn, const char *name, void *data,pfnSDL_CurrentBeginThread bf,pfnSDL_CurrentEndThread ef);
+SDL_Thread * SDL_CreateThreadWithStackSize(int ( * fn) (void *),const char *name, const size_t stacksize, void *data,pfnSDL_CurrentBeginThread bf,pfnSDL_CurrentEndThread ef);
+]]
+
 local special =[[
 static const int SDL_WINDOWPOS_CENTERED = SDL_WINDOWPOS_CENTERED_MASK;
 SDL_Thread * SDL_CreateThread(SDL_ThreadFunction fn, const char *name, void *data);
 SDL_Thread * SDL_CreateThreadWithStackSize(int ( * fn) (void *),const char *name, const size_t stacksize, void *data);
 ]]
+
 
 -----------make test
 local funcnames = {}
@@ -120,11 +140,29 @@ ffi_cdef]].."[["..table.concat(cdefs,"").."]]"..[[
 
 ffi_cdef]].."[["..table.concat(deftab,"\n").."]]"..[[
 
+if ffi.os == 'Windows' then
+ffi_cdef]].."[["..special_win.."]]"..[[
+
+else
 ffi_cdef]].."[["..special.."]]"..[[
+
+end
 
 local lib = ffi.load"SDL2"
 
 local M = {C=lib}
+
+if ffi.os == "Windows" then
+
+   function M.createThread(a,b,c)
+   	return lib.SDL_CreateThread(a,b,c,ffi.C._beginthreadex, ffi.C._endthreadex)
+   end
+   
+   function M.createThreadWithStackSize(a,b,c,d)
+   	return lib.SDL_CreateThreadWithStackSize(a,b,c,d,ffi.C._beginthreadex, ffi.C._endthreadex)
+   end
+
+end
 
 function M.LoadBMP(file)
     return M.LoadBMP_RW(M.RWFromFile(file, 'rb'), 1)

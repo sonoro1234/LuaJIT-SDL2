@@ -162,7 +162,7 @@ char * SDL_iconv_string(const char *tocode,
                                                const char *inbuf,
                                                size_t inbytesleft);
 typedef int (*SDL_main_func)(int argc, char *argv[]);
-extern int SDL_main(int argc, char *argv[]);
+int SDL_main(int argc, char *argv[]);
 void SDL_SetMainReady(void);
 int SDL_RegisterApp(char *name, Uint32 style, void *hInst);
 void SDL_UnregisterApp(void);
@@ -3125,13 +3125,41 @@ static const int SDL_INIT_GAMECONTROLLER = 0x00002000u;
 static const int SDL_INIT_EVENTS = 0x00004000u;
 static const int SDL_INIT_SENSOR = 0x00008000u;
 static const int SDL_INIT_NOPARACHUTE = 0x00100000u;]]
+if ffi.os == 'Windows' then
+ffi_cdef[[typedef unsigned long (__cdecl *pfnSDL_CurrentBeginThread) (void *, unsigned,
+        unsigned (__stdcall *func)(void *), void *arg,
+        unsigned, unsigned *threadID);
+typedef void (__cdecl *pfnSDL_CurrentEndThread)(unsigned code);
+
+ uintptr_t __cdecl _beginthreadex(void *_Security,unsigned _StackSize,unsigned (__stdcall *_StartAddress) (void *),void *_ArgList,unsigned _InitFlag,unsigned *_ThrdAddr);
+   void __cdecl _endthreadex(unsigned _Retval);
+  
+static const int SDL_WINDOWPOS_CENTERED = SDL_WINDOWPOS_CENTERED_MASK;
+SDL_Thread * SDL_CreateThread(SDL_ThreadFunction fn, const char *name, void *data,pfnSDL_CurrentBeginThread bf,pfnSDL_CurrentEndThread ef);
+SDL_Thread * SDL_CreateThreadWithStackSize(int ( * fn) (void *),const char *name, const size_t stacksize, void *data,pfnSDL_CurrentBeginThread bf,pfnSDL_CurrentEndThread ef);
+]]
+else
 ffi_cdef[[static const int SDL_WINDOWPOS_CENTERED = SDL_WINDOWPOS_CENTERED_MASK;
 SDL_Thread * SDL_CreateThread(SDL_ThreadFunction fn, const char *name, void *data);
 SDL_Thread * SDL_CreateThreadWithStackSize(int ( * fn) (void *),const char *name, const size_t stacksize, void *data);
 ]]
+end
+
 local lib = ffi.load"SDL2"
 
 local M = {C=lib}
+
+if ffi.os == "Windows" then
+
+   function M.createThread(a,b,c)
+   	return lib.SDL_CreateThread(a,b,c,ffi.C._beginthreadex, ffi.C._endthreadex)
+   end
+   
+   function M.createThreadWithStackSize(a,b,c,d)
+   	return lib.SDL_CreateThreadWithStackSize(a,b,c,d,ffi.C._beginthreadex, ffi.C._endthreadex)
+   end
+
+end
 
 function M.LoadBMP(file)
     return M.LoadBMP_RW(M.RWFromFile(file, 'rb'), 1)
