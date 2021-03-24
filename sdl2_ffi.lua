@@ -65,10 +65,18 @@ char * SDL_getenv(const char *name);
 int SDL_setenv(const char *name, const char *value, int overwrite);
 void SDL_qsort(void *base, size_t nmemb, size_t size, int (*compare) (const void *, const void *));
 int SDL_abs(int x);
+int SDL_isalpha(int x);
+int SDL_isalnum(int x);
+int SDL_isblank(int x);
+int SDL_iscntrl(int x);
 int SDL_isdigit(int x);
+int SDL_isxdigit(int x);
+int SDL_ispunct(int x);
 int SDL_isspace(int x);
 int SDL_isupper(int x);
 int SDL_islower(int x);
+int SDL_isprint(int x);
+int SDL_isgraph(int x);
 int SDL_toupper(int x);
 int SDL_tolower(int x);
 Uint32 SDL_crc32(Uint32 crc, const void *data, size_t len);
@@ -336,12 +344,15 @@ Sint64 SDL_RWseek(SDL_RWops *context,
                                           Sint64 offset, int whence);
 Sint64 SDL_RWtell(SDL_RWops *context);
 size_t SDL_RWread(SDL_RWops *context,
-                                          void *ptr, size_t size, size_t maxnum);
+                                          void *ptr, size_t size,
+                                          size_t maxnum);
 size_t SDL_RWwrite(SDL_RWops *context,
-                                           const void *ptr, size_t size, size_t num);
+                                           const void *ptr, size_t size,
+                                           size_t num);
 int SDL_RWclose(SDL_RWops *context);
-void * SDL_LoadFile_RW(SDL_RWops * src, size_t *datasize,
-                                                    int freesrc);
+void * SDL_LoadFile_RW(SDL_RWops *src,
+                                              size_t *datasize,
+                                              int freesrc);
 void * SDL_LoadFile(const char *file, size_t *datasize);
 Uint8 SDL_ReadU8(SDL_RWops * src);
 Uint16 SDL_ReadLE16(SDL_RWops * src);
@@ -400,6 +411,9 @@ typedef Uint32 SDL_AudioDeviceID;
 int SDL_GetNumAudioDevices(int iscapture);
 const char * SDL_GetAudioDeviceName(int index,
                                                            int iscapture);
+int SDL_GetAudioDeviceSpec(int index,
+                                                   int iscapture,
+                                                   SDL_AudioSpec *spec);
 SDL_AudioDeviceID SDL_OpenAudioDevice(const char
                                                               *device,
                                                               int iscapture,
@@ -417,8 +431,7 @@ typedef enum
     SDL_AUDIO_PAUSED
 } SDL_AudioStatus;
 SDL_AudioStatus SDL_GetAudioStatus(void);
-SDL_AudioStatus
-SDL_GetAudioDeviceStatus(SDL_AudioDeviceID dev);
+SDL_AudioStatus SDL_GetAudioDeviceStatus(SDL_AudioDeviceID dev);
 void SDL_PauseAudio(int pause_on);
 void SDL_PauseAudioDevice(SDL_AudioDeviceID dev,
                                                   int pause_on);
@@ -1065,8 +1078,7 @@ int SDL_GetCurrentDisplayMode(int displayIndex, SDL_DisplayMode * mode);
 SDL_DisplayMode * SDL_GetClosestDisplayMode(int displayIndex, const SDL_DisplayMode * mode, SDL_DisplayMode * closest);
 int SDL_GetWindowDisplayIndex(SDL_Window * window);
 int SDL_SetWindowDisplayMode(SDL_Window * window,
-                                                     const SDL_DisplayMode
-                                                         * mode);
+                                                     const SDL_DisplayMode * mode);
 int SDL_GetWindowDisplayMode(SDL_Window * window,
                                                      SDL_DisplayMode * mode);
 Uint32 SDL_GetWindowPixelFormat(SDL_Window * window);
@@ -1442,7 +1454,7 @@ typedef enum
 {
     SDLK_UNKNOWN = 0,
     SDLK_RETURN = '\r',
-    SDLK_ESCAPE = '\033',
+    SDLK_ESCAPE = '\x1B',
     SDLK_BACKSPACE = '\b',
     SDLK_TAB = '\t',
     SDLK_SPACE = ' ',
@@ -1529,7 +1541,7 @@ typedef enum
     SDLK_INSERT = (SDL_SCANCODE_INSERT | (1<<30)),
     SDLK_HOME = (SDL_SCANCODE_HOME | (1<<30)),
     SDLK_PAGEUP = (SDL_SCANCODE_PAGEUP | (1<<30)),
-    SDLK_DELETE = '\177',
+    SDLK_DELETE = '\x7F',
     SDLK_END = (SDL_SCANCODE_END | (1<<30)),
     SDLK_PAGEDOWN = (SDL_SCANCODE_PAGEDOWN | (1<<30)),
     SDLK_RIGHT = (SDL_SCANCODE_RIGHT | (1<<30)),
@@ -1963,7 +1975,7 @@ typedef enum
     SDL_CONTROLLER_AXIS_TRIGGERRIGHT,
     SDL_CONTROLLER_AXIS_MAX
 } SDL_GameControllerAxis;
-SDL_GameControllerAxis SDL_GameControllerGetAxisFromString(const char *pchString);
+SDL_GameControllerAxis SDL_GameControllerGetAxisFromString(const char *str);
 const char* SDL_GameControllerGetStringForAxis(SDL_GameControllerAxis axis);
 SDL_GameControllerButtonBind
 SDL_GameControllerGetBindForAxis(SDL_GameController *gamecontroller,
@@ -1998,7 +2010,7 @@ typedef enum
     SDL_CONTROLLER_BUTTON_TOUCHPAD,
     SDL_CONTROLLER_BUTTON_MAX
 } SDL_GameControllerButton;
-SDL_GameControllerButton SDL_GameControllerGetButtonFromString(const char *pchString);
+SDL_GameControllerButton SDL_GameControllerGetButtonFromString(const char *str);
 const char* SDL_GameControllerGetStringForButton(SDL_GameControllerButton button);
 SDL_GameControllerButtonBind
 SDL_GameControllerGetBindForButton(SDL_GameController *gamecontroller,
@@ -2906,10 +2918,10 @@ int SDL_RenderDrawPointsF(SDL_Renderer * renderer,
 int SDL_RenderDrawLineF(SDL_Renderer * renderer,
                                                 float x1, float y1, float x2, float y2);
 int SDL_RenderDrawLinesF(SDL_Renderer * renderer,
-                                                const SDL_FPoint * points,
-                                                int count);
+                                                 const SDL_FPoint * points,
+                                                 int count);
 int SDL_RenderDrawRectF(SDL_Renderer * renderer,
-                                               const SDL_FRect * rect);
+                                                const SDL_FRect * rect);
 int SDL_RenderDrawRectsF(SDL_Renderer * renderer,
                                                  const SDL_FRect * rects,
                                                  int count);
@@ -2992,7 +3004,7 @@ typedef struct SDL_version
 } SDL_version;
 void SDL_GetVersion(SDL_version * ver);
 const char * SDL_GetRevision(void);
-int SDL_GetRevisionNumber(void);
+__attribute__((deprecated)) int SDL_GetRevisionNumber(void);
 typedef struct SDL_Locale
 {
     const char *language;
@@ -3051,6 +3063,10 @@ static const int SDL_PRIs64 = "I64d";
 static const int SDL_PRIu64 = "I64u";
 static const int SDL_PRIx64 = "I64x";
 static const int SDL_PRIX64 = "I64X";
+static const int SDL_PRIs32 = "d";
+static const int SDL_PRIu32 = "u";
+static const int SDL_PRIx32 = "x";
+static const int SDL_PRIX32 = "X";
 static const int SDL_ICONV_ERROR = (size_t)-1;
 static const int SDL_ICONV_E2BIG = (size_t)-2;
 static const int SDL_ICONV_EILSEQ = (size_t)-3;
@@ -3260,6 +3276,7 @@ static const int SDL_HINT_WINDOWS_FORCE_SEMAPHORE_KERNEL = "SDL_WINDOWS_FORCE_SE
 static const int SDL_HINT_WINDOWS_USE_D3D9EX = "SDL_WINDOWS_USE_D3D9EX";
 static const int SDL_HINT_RPI_VIDEO_LAYER = "SDL_RPI_VIDEO_LAYER";
 static const int SDL_HINT_VIDEO_DOUBLE_BUFFER = "SDL_VIDEO_DOUBLE_BUFFER";
+static const int SDL_HINT_KMSDRM_REQUIRE_DRM_MASTER = "SDL_KMSDRM_REQUIRE_DRM_MASTER";
 static const int SDL_HINT_OPENGL_ES_DRIVER = "SDL_OPENGL_ES_DRIVER";
 static const int SDL_HINT_AUDIO_RESAMPLING_MODE = "SDL_AUDIO_RESAMPLING_MODE";
 static const int SDL_HINT_AUDIO_CATEGORY = "SDL_AUDIO_CATEGORY";
@@ -3273,6 +3290,7 @@ static const int SDL_HINT_WAVE_FACT_CHUNK = "SDL_WAVE_FACT_CHUNK";
 static const int SDL_HINT_DISPLAY_USABLE_BOUNDS = "SDL_DISPLAY_USABLE_BOUNDS";
 static const int SDL_HINT_AUDIO_DEVICE_APP_NAME = "SDL_AUDIO_DEVICE_APP_NAME";
 static const int SDL_HINT_AUDIO_DEVICE_STREAM_NAME = "SDL_AUDIO_DEVICE_STREAM_NAME";
+static const int SDL_HINT_AUDIO_DEVICE_STREAM_ROLE = "SDL_AUDIO_DEVICE_STREAM_ROLE";
 static const int SDL_HINT_ALLOW_ALT_TAB_WHILE_GRABBED = "SDL_ALLOW_ALT_TAB_WHILE_GRABBED";
 static const int SDL_HINT_PREFERRED_LOCALES = "SDL_PREFERRED_LOCALES";
 static const int SDL_MAX_LOG_MESSAGE = 4096;
