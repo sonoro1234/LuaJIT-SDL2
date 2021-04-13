@@ -184,7 +184,7 @@ while (not done) do
 	local level = ffi.new("float[1]")
 	ig.PushItemWidth(80)
     for node in audioplayer:nodes() do
-		ig.PushIDPtr(node)
+		ig.PushID_Ptr(node)
 		ffi.C.sprintf(cbuf,"%p",node)
 		ig.Text(cbuf);ig.SameLine()
 		level[0] = node.level
