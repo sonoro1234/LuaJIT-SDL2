@@ -44,10 +44,14 @@ end
 --make new cdefs
 local cdefs = {}
 for k,v in ipairs(itemsarr) do
+	-- if v.item:match"_Static_assert" then
+		-- for kk,vv in pairs(v) do print(kk,vv) end
+		-- break
+	-- end
 	if v.re_name ~= "functionD_re" then --skip defined funcs
 		if v.re_name=="function_re" then
-			--skip CreateThread
-			if not v.item:match("CreateThread") then
+			--skip CreateThread and _Static_assert
+			if not v.item:match("CreateThread") and not v.item:match"_Static_assert" then
 				local item = v.item
 				if item:match("^%s*extern") then
 					item = item:gsub("^%s*extern%s*(.+)","\n%1")

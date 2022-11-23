@@ -31,19 +31,10 @@ typedef int32_t Sint32;
 typedef uint32_t Uint32;
 typedef int64_t Sint64;
 typedef uint64_t Uint64;
-typedef int SDL_compile_time_assert_uint8[(sizeof(Uint8) == 1) * 2 - 1];
-typedef int SDL_compile_time_assert_sint8[(sizeof(Sint8) == 1) * 2 - 1];
-typedef int SDL_compile_time_assert_uint16[(sizeof(Uint16) == 2) * 2 - 1];
-typedef int SDL_compile_time_assert_sint16[(sizeof(Sint16) == 2) * 2 - 1];
-typedef int SDL_compile_time_assert_uint32[(sizeof(Uint32) == 4) * 2 - 1];
-typedef int SDL_compile_time_assert_sint32[(sizeof(Sint32) == 4) * 2 - 1];
-typedef int SDL_compile_time_assert_uint64[(sizeof(Uint64) == 8) * 2 - 1];
-typedef int SDL_compile_time_assert_sint64[(sizeof(Sint64) == 8) * 2 - 1];
 typedef enum
 {
     DUMMY_ENUM_VALUE
 } SDL_DUMMY_ENUM;
-typedef int SDL_compile_time_assert_enum[(sizeof(SDL_DUMMY_ENUM) == sizeof(int)) * 2 - 1];
 void * SDL_malloc(size_t size);
 void * SDL_calloc(size_t nmemb, size_t size);
 void * SDL_realloc(void *mem, size_t size);
@@ -52,6 +43,10 @@ typedef void *( *SDL_malloc_func)(size_t size);
 typedef void *( *SDL_calloc_func)(size_t nmemb, size_t size);
 typedef void *( *SDL_realloc_func)(void *mem, size_t size);
 typedef void ( *SDL_free_func)(void *mem);
+void SDL_GetOriginalMemoryFunctions(SDL_malloc_func *malloc_func,
+                                                            SDL_calloc_func *calloc_func,
+                                                            SDL_realloc_func *realloc_func,
+                                                            SDL_free_func *free_func);
 void SDL_GetMemoryFunctions(SDL_malloc_func *malloc_func,
                                                     SDL_calloc_func *calloc_func,
                                                     SDL_realloc_func *realloc_func,
@@ -63,7 +58,8 @@ int SDL_SetMemoryFunctions(SDL_malloc_func malloc_func,
 int SDL_GetNumAllocations(void);
 char * SDL_getenv(const char *name);
 int SDL_setenv(const char *name, const char *value, int overwrite);
-void SDL_qsort(void *base, size_t nmemb, size_t size, int (*compare) (const void *, const void *));
+void SDL_qsort(void *base, size_t nmemb, size_t size, int ( *compare) (const void *, const void *));
+void * SDL_bsearch(const void *key, const void *base, size_t nmemb, size_t size, int ( *compare) (const void *, const void *));
 int SDL_abs(int x);
 int SDL_isalpha(int x);
 int SDL_isalnum(int x);
@@ -79,6 +75,7 @@ int SDL_isprint(int x);
 int SDL_isgraph(int x);
 int SDL_toupper(int x);
 int SDL_tolower(int x);
+Uint16 SDL_crc16(Uint16 crc, const void *data, size_t len);
 Uint32 SDL_crc32(Uint32 crc, const void *data, size_t len);
 void * SDL_memset( void *dst, int c, size_t len);
 void * SDL_memcpy( void *dst, const void *src, size_t len);
@@ -104,8 +101,10 @@ char * SDL_strlwr(char *str);
 char * SDL_strchr(const char *str, int c);
 char * SDL_strrchr(const char *str, int c);
 char * SDL_strstr(const char *haystack, const char *needle);
+char * SDL_strcasestr(const char *haystack, const char *needle);
 char * SDL_strtokr(char *s1, const char *s2, char **saveptr);
 size_t SDL_utf8strlen(const char *str);
+size_t SDL_utf8strnlen(const char *str, size_t bytes);
 char * SDL_itoa(int value, char *str, int radix);
 char * SDL_uitoa(unsigned int value, char *str, int radix);
 char * SDL_ltoa(long value, char *str, int radix);
@@ -127,14 +126,16 @@ int SDL_sscanf(const char *text, const char *fmt, ...) __attribute__ (( format( 
 int SDL_vsscanf(const char *text, const char *fmt, va_list ap);
 int SDL_snprintf( char *text, size_t maxlen, const char *fmt, ... ) __attribute__ (( format( __printf__, 3, 3 +1 )));
 int SDL_vsnprintf( char *text, size_t maxlen, const char *fmt, va_list ap);
+int SDL_asprintf(char **strp, const char *fmt, ...) __attribute__ (( format( __printf__, 2, 2 +1 )));
+int SDL_vasprintf(char **strp, const char *fmt, va_list ap);
 double SDL_acos(double x);
 float SDL_acosf(float x);
 double SDL_asin(double x);
 float SDL_asinf(float x);
 double SDL_atan(double x);
 float SDL_atanf(float x);
-double SDL_atan2(double x, double y);
-float SDL_atan2f(float x, float y);
+double SDL_atan2(double y, double x);
+float SDL_atan2f(float y, float x);
 double SDL_ceil(double x);
 float SDL_ceilf(float x);
 double SDL_copysign(double x, double y);
@@ -183,7 +184,7 @@ char * SDL_iconv_string(const char *tocode,
 typedef int (*SDL_main_func)(int argc, char *argv[]);
 int SDL_main(int argc, char *argv[]);
 void SDL_SetMainReady(void);
-int SDL_RegisterApp(char *name, Uint32 style, void *hInst);
+int SDL_RegisterApp(const char *name, Uint32 style, void *hInst);
 void SDL_UnregisterApp(void);
 typedef enum
 {
@@ -293,6 +294,7 @@ void SDL_DetachThread(SDL_Thread * thread);
 SDL_TLSID SDL_TLSCreate(void);
 void * SDL_TLSGet(SDL_TLSID id);
 int SDL_TLSSet(SDL_TLSID id, const void *value, void ( *destructor)(void*));
+void SDL_TLSCleanup(void);
 typedef struct SDL_RWops
 {
     Sint64 ( * size) (struct SDL_RWops * context);
@@ -414,16 +416,15 @@ const char * SDL_GetAudioDeviceName(int index,
 int SDL_GetAudioDeviceSpec(int index,
                                                    int iscapture,
                                                    SDL_AudioSpec *spec);
-SDL_AudioDeviceID SDL_OpenAudioDevice(const char
-                                                              *device,
-                                                              int iscapture,
-                                                              const
-                                                              SDL_AudioSpec *
-                                                              desired,
-                                                              SDL_AudioSpec *
-                                                              obtained,
-                                                              int
-                                                              allowed_changes);
+int SDL_GetDefaultAudioInfo(char **name,
+                                                    SDL_AudioSpec *spec,
+                                                    int iscapture);
+SDL_AudioDeviceID SDL_OpenAudioDevice(
+                                                  const char *device,
+                                                  int iscapture,
+                                                  const SDL_AudioSpec *desired,
+                                                  SDL_AudioSpec *obtained,
+                                                  int allowed_changes);
 typedef enum
 {
     SDL_AUDIO_STOPPED = 0,
@@ -482,6 +483,9 @@ void SDL_CloseAudioDevice(SDL_AudioDeviceID dev);
 int SDL_SetClipboardText(const char *text);
 char * SDL_GetClipboardText(void);
 SDL_bool SDL_HasClipboardText(void);
+int SDL_SetPrimarySelectionText(const char *text);
+char * SDL_GetPrimarySelectionText(void);
+SDL_bool SDL_HasPrimarySelectionText(void);
 int SDL_GetCPUCount(void);
 int SDL_GetCPUCacheLineSize(void);
 SDL_bool SDL_HasRDTSC(void);
@@ -498,6 +502,8 @@ SDL_bool SDL_HasAVX2(void);
 SDL_bool SDL_HasAVX512F(void);
 SDL_bool SDL_HasARMSIMD(void);
 SDL_bool SDL_HasNEON(void);
+SDL_bool SDL_HasLSX(void);
+SDL_bool SDL_HasLASX(void);
 int SDL_GetSystemRAM(void);
 size_t SDL_SIMDGetAlignment(void);
 void * SDL_SIMDAlloc(const size_t len);
@@ -788,6 +794,22 @@ SDL_bool SDL_IntersectRectAndLine(const SDL_Rect *
                                                           rect, int *X1,
                                                           int *Y1, int *X2,
                                                           int *Y2);
+SDL_bool SDL_HasIntersectionF(const SDL_FRect * A,
+                                                      const SDL_FRect * B);
+SDL_bool SDL_IntersectFRect(const SDL_FRect * A,
+                                                    const SDL_FRect * B,
+                                                    SDL_FRect * result);
+void SDL_UnionFRect(const SDL_FRect * A,
+                                            const SDL_FRect * B,
+                                            SDL_FRect * result);
+SDL_bool SDL_EncloseFPoints(const SDL_FPoint * points,
+                                                    int count,
+                                                    const SDL_FRect * clip,
+                                                    SDL_FRect * result);
+SDL_bool SDL_IntersectFRectAndLine(const SDL_FRect *
+                                                           rect, float *X1,
+                                                           float *Y1, float *X2,
+                                                           float *Y2);
 typedef enum
 {
     SDL_BLENDMODE_NONE = 0x00000000,
@@ -824,6 +846,7 @@ SDL_BlendMode SDL_ComposeCustomBlendMode(SDL_BlendFactor srcColorFactor,
                                                                  SDL_BlendFactor srcAlphaFactor,
                                                                  SDL_BlendFactor dstAlphaFactor,
                                                                  SDL_BlendOperation alphaOperation);
+typedef struct SDL_BlitMap SDL_BlitMap;
 typedef struct SDL_Surface
 {
     Uint32 flags;
@@ -835,7 +858,7 @@ typedef struct SDL_Surface
     int locked;
     void *list_blitmap;
     SDL_Rect clip_rect;
-    struct SDL_BlitMap *map;
+    SDL_BlitMap *map;
     int refcount;
 } SDL_Surface;
 typedef int ( *SDL_blit) (struct SDL_Surface * src, SDL_Rect * srcrect,
@@ -907,6 +930,11 @@ int SDL_ConvertPixels(int width, int height,
                                               const void * src, int src_pitch,
                                               Uint32 dst_format,
                                               void * dst, int dst_pitch);
+int SDL_PremultiplyAlpha(int width, int height,
+                                                 Uint32 src_format,
+                                                 const void * src, int src_pitch,
+                                                 Uint32 dst_format,
+                                                 void * dst, int dst_pitch);
 int SDL_FillRect
     (SDL_Surface * dst, const SDL_Rect * rect, Uint32 color);
 int SDL_FillRects
@@ -988,7 +1016,9 @@ typedef enum
     SDL_WINDOWEVENT_FOCUS_LOST,
     SDL_WINDOWEVENT_CLOSE,
     SDL_WINDOWEVENT_TAKE_FOCUS,
-    SDL_WINDOWEVENT_HIT_TEST
+    SDL_WINDOWEVENT_HIT_TEST,
+    SDL_WINDOWEVENT_ICCPROF_CHANGED,
+    SDL_WINDOWEVENT_DISPLAY_CHANGED
 } SDL_WindowEventID;
 typedef enum
 {
@@ -1005,6 +1035,12 @@ typedef enum
     SDL_ORIENTATION_PORTRAIT,
     SDL_ORIENTATION_PORTRAIT_FLIPPED
 } SDL_DisplayOrientation;
+typedef enum
+{
+    SDL_FLASH_CANCEL,
+    SDL_FLASH_BRIEFLY,
+    SDL_FLASH_UNTIL_FOCUSED
+} SDL_FlashOperation;
 typedef void *SDL_GLContext;
 typedef enum
 {
@@ -1034,7 +1070,8 @@ typedef enum
     SDL_GL_FRAMEBUFFER_SRGB_CAPABLE,
     SDL_GL_CONTEXT_RELEASE_BEHAVIOR,
     SDL_GL_CONTEXT_RESET_NOTIFICATION,
-    SDL_GL_CONTEXT_NO_ERROR
+    SDL_GL_CONTEXT_NO_ERROR,
+    SDL_GL_FLOATBUFFERS
 } SDL_GLattr;
 typedef enum
 {
@@ -1076,11 +1113,14 @@ int SDL_GetDisplayMode(int displayIndex, int modeIndex,
 int SDL_GetDesktopDisplayMode(int displayIndex, SDL_DisplayMode * mode);
 int SDL_GetCurrentDisplayMode(int displayIndex, SDL_DisplayMode * mode);
 SDL_DisplayMode * SDL_GetClosestDisplayMode(int displayIndex, const SDL_DisplayMode * mode, SDL_DisplayMode * closest);
+int SDL_GetPointDisplayIndex(const SDL_Point * point);
+int SDL_GetRectDisplayIndex(const SDL_Rect * rect);
 int SDL_GetWindowDisplayIndex(SDL_Window * window);
 int SDL_SetWindowDisplayMode(SDL_Window * window,
                                                      const SDL_DisplayMode * mode);
 int SDL_GetWindowDisplayMode(SDL_Window * window,
                                                      SDL_DisplayMode * mode);
+void* SDL_GetWindowICCProfile(SDL_Window * window, size_t* size);
 Uint32 SDL_GetWindowPixelFormat(SDL_Window * window);
 SDL_Window * SDL_CreateWindow(const char *title,
                                                       int x, int y, int w,
@@ -1110,6 +1150,8 @@ void SDL_GetWindowSize(SDL_Window * window, int *w,
 int SDL_GetWindowBordersSize(SDL_Window * window,
                                                      int *top, int *left,
                                                      int *bottom, int *right);
+void SDL_GetWindowSizeInPixels(SDL_Window * window,
+                                                       int *w, int *h);
 void SDL_SetWindowMinimumSize(SDL_Window * window,
                                                       int min_w, int min_h);
 void SDL_GetWindowMinimumSize(SDL_Window * window,
@@ -1122,6 +1164,8 @@ void SDL_SetWindowBordered(SDL_Window * window,
                                                    SDL_bool bordered);
 void SDL_SetWindowResizable(SDL_Window * window,
                                                     SDL_bool resizable);
+void SDL_SetWindowAlwaysOnTop(SDL_Window * window,
+                                                      SDL_bool on_top);
 void SDL_ShowWindow(SDL_Window * window);
 void SDL_HideWindow(SDL_Window * window);
 void SDL_RaiseWindow(SDL_Window * window);
@@ -1145,6 +1189,8 @@ SDL_bool SDL_GetWindowGrab(SDL_Window * window);
 SDL_bool SDL_GetWindowKeyboardGrab(SDL_Window * window);
 SDL_bool SDL_GetWindowMouseGrab(SDL_Window * window);
 SDL_Window * SDL_GetGrabbedWindow(void);
+int SDL_SetWindowMouseRect(SDL_Window * window, const SDL_Rect * rect);
+const SDL_Rect * SDL_GetWindowMouseRect(SDL_Window * window);
 int SDL_SetWindowBrightness(SDL_Window * window, float brightness);
 float SDL_GetWindowBrightness(SDL_Window * window);
 int SDL_SetWindowOpacity(SDL_Window * window, float opacity);
@@ -1178,6 +1224,7 @@ typedef SDL_HitTestResult ( *SDL_HitTest)(SDL_Window *win,
 int SDL_SetWindowHitTest(SDL_Window * window,
                                                  SDL_HitTest callback,
                                                  void *callback_data);
+int SDL_FlashWindow(SDL_Window * window, SDL_FlashOperation operation);
 void SDL_DestroyWindow(SDL_Window * window);
 SDL_bool SDL_IsScreenSaverEnabled(void);
 void SDL_EnableScreenSaver(void);
@@ -1447,6 +1494,10 @@ typedef enum
     SDL_SCANCODE_APP2 = 284,
     SDL_SCANCODE_AUDIOREWIND = 285,
     SDL_SCANCODE_AUDIOFASTFORWARD = 286,
+    SDL_SCANCODE_SOFTLEFT = 287,
+    SDL_SCANCODE_SOFTRIGHT = 288,
+    SDL_SCANCODE_CALL = 289,
+    SDL_SCANCODE_ENDCALL = 290,
     SDL_NUM_SCANCODES = 512
 } SDL_Scancode;
 typedef Sint32 SDL_Keycode;
@@ -1703,7 +1754,11 @@ typedef enum
     SDLK_APP1 = (SDL_SCANCODE_APP1 | (1<<30)),
     SDLK_APP2 = (SDL_SCANCODE_APP2 | (1<<30)),
     SDLK_AUDIOREWIND = (SDL_SCANCODE_AUDIOREWIND | (1<<30)),
-    SDLK_AUDIOFASTFORWARD = (SDL_SCANCODE_AUDIOFASTFORWARD | (1<<30))
+    SDLK_AUDIOFASTFORWARD = (SDL_SCANCODE_AUDIOFASTFORWARD | (1<<30)),
+    SDLK_SOFTLEFT = (SDL_SCANCODE_SOFTLEFT | (1<<30)),
+    SDLK_SOFTRIGHT = (SDL_SCANCODE_SOFTRIGHT | (1<<30)),
+    SDLK_CALL = (SDL_SCANCODE_CALL | (1<<30)),
+    SDLK_ENDCALL = (SDL_SCANCODE_ENDCALL | (1<<30))
 } SDL_KeyCode;
 typedef enum
 {
@@ -1719,11 +1774,12 @@ typedef enum
     KMOD_NUM = 0x1000,
     KMOD_CAPS = 0x2000,
     KMOD_MODE = 0x4000,
-    KMOD_RESERVED = 0x8000,
+    KMOD_SCROLL = 0x8000,
     KMOD_CTRL = KMOD_LCTRL | KMOD_RCTRL,
     KMOD_SHIFT = KMOD_LSHIFT | KMOD_RSHIFT,
     KMOD_ALT = KMOD_LALT | KMOD_RALT,
-    KMOD_GUI = KMOD_LGUI | KMOD_RGUI
+    KMOD_GUI = KMOD_LGUI | KMOD_RGUI,
+    KMOD_RESERVED = KMOD_SCROLL
 } SDL_Keymod;
 typedef struct SDL_Keysym
 {
@@ -1734,6 +1790,7 @@ typedef struct SDL_Keysym
 } SDL_Keysym;
 SDL_Window * SDL_GetKeyboardFocus(void);
 const Uint8 * SDL_GetKeyboardState(int *numkeys);
+void SDL_ResetKeyboard(void);
 SDL_Keymod SDL_GetModState(void);
 void SDL_SetModState(SDL_Keymod modstate);
 SDL_Keycode SDL_GetKeyFromScancode(SDL_Scancode scancode);
@@ -1745,7 +1802,9 @@ SDL_Keycode SDL_GetKeyFromName(const char *name);
 void SDL_StartTextInput(void);
 SDL_bool SDL_IsTextInputActive(void);
 void SDL_StopTextInput(void);
-void SDL_SetTextInputRect(SDL_Rect *rect);
+void SDL_ClearComposition(void);
+SDL_bool SDL_IsTextInputShown(void);
+void SDL_SetTextInputRect(const SDL_Rect *rect);
 SDL_bool SDL_HasScreenKeyboardSupport(void);
 SDL_bool SDL_IsScreenKeyboardShown(SDL_Window *window);
 typedef struct SDL_Cursor SDL_Cursor;
@@ -1793,11 +1852,14 @@ SDL_Cursor * SDL_GetCursor(void);
 SDL_Cursor * SDL_GetDefaultCursor(void);
 void SDL_FreeCursor(SDL_Cursor * cursor);
 int SDL_ShowCursor(int toggle);
-struct _SDL_Joystick;
-typedef struct _SDL_Joystick SDL_Joystick;
 typedef struct {
     Uint8 data[16];
-} SDL_JoystickGUID;
+} SDL_GUID;
+void SDL_GUIDToString(SDL_GUID guid, char *pszGUID, int cbGUID);
+SDL_GUID SDL_GUIDFromString(const char *pchGUID);
+struct _SDL_Joystick;
+typedef struct _SDL_Joystick SDL_Joystick;
+typedef SDL_GUID SDL_JoystickGUID;
 typedef Sint32 SDL_JoystickID;
 typedef enum
 {
@@ -1826,6 +1888,7 @@ void SDL_LockJoysticks(void);
 void SDL_UnlockJoysticks(void);
 int SDL_NumJoysticks(void);
 const char * SDL_JoystickNameForIndex(int device_index);
+const char * SDL_JoystickPathForIndex(int device_index);
 int SDL_JoystickGetDevicePlayerIndex(int device_index);
 SDL_JoystickGUID SDL_JoystickGetDeviceGUID(int device_index);
 Uint16 SDL_JoystickGetDeviceVendor(int device_index);
@@ -1840,22 +1903,47 @@ int SDL_JoystickAttachVirtual(SDL_JoystickType type,
                                                       int naxes,
                                                       int nbuttons,
                                                       int nhats);
+typedef struct SDL_VirtualJoystickDesc
+{
+    Uint16 version;
+    Uint16 type;
+    Uint16 naxes;
+    Uint16 nbuttons;
+    Uint16 nhats;
+    Uint16 vendor_id;
+    Uint16 product_id;
+    Uint16 padding;
+    Uint32 button_mask;
+    Uint32 axis_mask;
+    const char *name;
+    void *userdata;
+    void ( *Update)(void *userdata);
+    void ( *SetPlayerIndex)(void *userdata, int player_index);
+    int ( *Rumble)(void *userdata, Uint16 low_frequency_rumble, Uint16 high_frequency_rumble);
+    int ( *RumbleTriggers)(void *userdata, Uint16 left_rumble, Uint16 right_rumble);
+    int ( *SetLED)(void *userdata, Uint8 red, Uint8 green, Uint8 blue);
+    int ( *SendEffect)(void *userdata, const void *data, int size);
+} SDL_VirtualJoystickDesc;
+int SDL_JoystickAttachVirtualEx(const SDL_VirtualJoystickDesc *desc);
 int SDL_JoystickDetachVirtual(int device_index);
 SDL_bool SDL_JoystickIsVirtual(int device_index);
 int SDL_JoystickSetVirtualAxis(SDL_Joystick *joystick, int axis, Sint16 value);
 int SDL_JoystickSetVirtualButton(SDL_Joystick *joystick, int button, Uint8 value);
 int SDL_JoystickSetVirtualHat(SDL_Joystick *joystick, int hat, Uint8 value);
 const char * SDL_JoystickName(SDL_Joystick *joystick);
+const char * SDL_JoystickPath(SDL_Joystick *joystick);
 int SDL_JoystickGetPlayerIndex(SDL_Joystick *joystick);
 void SDL_JoystickSetPlayerIndex(SDL_Joystick *joystick, int player_index);
 SDL_JoystickGUID SDL_JoystickGetGUID(SDL_Joystick *joystick);
 Uint16 SDL_JoystickGetVendor(SDL_Joystick *joystick);
 Uint16 SDL_JoystickGetProduct(SDL_Joystick *joystick);
 Uint16 SDL_JoystickGetProductVersion(SDL_Joystick *joystick);
+Uint16 SDL_JoystickGetFirmwareVersion(SDL_Joystick *joystick);
 const char * SDL_JoystickGetSerial(SDL_Joystick *joystick);
 SDL_JoystickType SDL_JoystickGetType(SDL_Joystick *joystick);
 void SDL_JoystickGetGUIDString(SDL_JoystickGUID guid, char *pszGUID, int cbGUID);
 SDL_JoystickGUID SDL_JoystickGetGUIDFromString(const char *pchGUID);
+void SDL_GetJoystickGUIDInfo(SDL_JoystickGUID guid, Uint16 *vendor, Uint16 *product, Uint16 *version, Uint16 *crc16);
 SDL_bool SDL_JoystickGetAttached(SDL_Joystick *joystick);
 SDL_JoystickID SDL_JoystickInstanceID(SDL_Joystick *joystick);
 int SDL_JoystickNumAxes(SDL_Joystick *joystick);
@@ -1877,7 +1965,10 @@ Uint8 SDL_JoystickGetButton(SDL_Joystick *joystick,
 int SDL_JoystickRumble(SDL_Joystick *joystick, Uint16 low_frequency_rumble, Uint16 high_frequency_rumble, Uint32 duration_ms);
 int SDL_JoystickRumbleTriggers(SDL_Joystick *joystick, Uint16 left_rumble, Uint16 right_rumble, Uint32 duration_ms);
 SDL_bool SDL_JoystickHasLED(SDL_Joystick *joystick);
+SDL_bool SDL_JoystickHasRumble(SDL_Joystick *joystick);
+SDL_bool SDL_JoystickHasRumbleTriggers(SDL_Joystick *joystick);
 int SDL_JoystickSetLED(SDL_Joystick *joystick, Uint8 red, Uint8 green, Uint8 blue);
+int SDL_JoystickSendEffect(SDL_Joystick *joystick, const void *data, int size);
 void SDL_JoystickClose(SDL_Joystick *joystick);
 SDL_JoystickPowerLevel SDL_JoystickCurrentPowerLevel(SDL_Joystick *joystick);
 struct _SDL_Sensor;
@@ -1888,7 +1979,11 @@ typedef enum
     SDL_SENSOR_INVALID = -1,
     SDL_SENSOR_UNKNOWN,
     SDL_SENSOR_ACCEL,
-    SDL_SENSOR_GYRO
+    SDL_SENSOR_GYRO,
+    SDL_SENSOR_ACCEL_L,
+    SDL_SENSOR_GYRO_L,
+    SDL_SENSOR_ACCEL_R,
+    SDL_SENSOR_GYRO_R
 } SDL_SensorType;
 void SDL_LockSensors(void);
 void SDL_UnlockSensors(void);
@@ -1903,8 +1998,9 @@ const char * SDL_SensorGetName(SDL_Sensor *sensor);
 SDL_SensorType SDL_SensorGetType(SDL_Sensor *sensor);
 int SDL_SensorGetNonPortableType(SDL_Sensor *sensor);
 SDL_SensorID SDL_SensorGetInstanceID(SDL_Sensor *sensor);
-int SDL_SensorGetData(SDL_Sensor * sensor, float *data, int num_values);
-void SDL_SensorClose(SDL_Sensor * sensor);
+int SDL_SensorGetData(SDL_Sensor *sensor, float *data, int num_values);
+int SDL_SensorGetDataWithTimestamp(SDL_Sensor *sensor, Uint64 *timestamp, float *data, int num_values);
+void SDL_SensorClose(SDL_Sensor *sensor);
 void SDL_SensorUpdate(void);
 struct _SDL_GameController;
 typedef struct _SDL_GameController SDL_GameController;
@@ -1917,7 +2013,13 @@ typedef enum
     SDL_CONTROLLER_TYPE_PS4,
     SDL_CONTROLLER_TYPE_NINTENDO_SWITCH_PRO,
     SDL_CONTROLLER_TYPE_VIRTUAL,
-    SDL_CONTROLLER_TYPE_PS5
+    SDL_CONTROLLER_TYPE_PS5,
+    SDL_CONTROLLER_TYPE_AMAZON_LUNA,
+    SDL_CONTROLLER_TYPE_GOOGLE_STADIA,
+    SDL_CONTROLLER_TYPE_NVIDIA_SHIELD,
+    SDL_CONTROLLER_TYPE_NINTENDO_SWITCH_JOYCON_LEFT,
+    SDL_CONTROLLER_TYPE_NINTENDO_SWITCH_JOYCON_RIGHT,
+    SDL_CONTROLLER_TYPE_NINTENDO_SWITCH_JOYCON_PAIR
 } SDL_GameControllerType;
 typedef enum
 {
@@ -1947,18 +2049,21 @@ char * SDL_GameControllerMappingForGUID(SDL_JoystickGUID guid);
 char * SDL_GameControllerMapping(SDL_GameController *gamecontroller);
 SDL_bool SDL_IsGameController(int joystick_index);
 const char * SDL_GameControllerNameForIndex(int joystick_index);
+const char * SDL_GameControllerPathForIndex(int joystick_index);
 SDL_GameControllerType SDL_GameControllerTypeForIndex(int joystick_index);
 char * SDL_GameControllerMappingForDeviceIndex(int joystick_index);
 SDL_GameController * SDL_GameControllerOpen(int joystick_index);
 SDL_GameController * SDL_GameControllerFromInstanceID(SDL_JoystickID joyid);
 SDL_GameController * SDL_GameControllerFromPlayerIndex(int player_index);
 const char * SDL_GameControllerName(SDL_GameController *gamecontroller);
+const char * SDL_GameControllerPath(SDL_GameController *gamecontroller);
 SDL_GameControllerType SDL_GameControllerGetType(SDL_GameController *gamecontroller);
 int SDL_GameControllerGetPlayerIndex(SDL_GameController *gamecontroller);
 void SDL_GameControllerSetPlayerIndex(SDL_GameController *gamecontroller, int player_index);
 Uint16 SDL_GameControllerGetVendor(SDL_GameController *gamecontroller);
 Uint16 SDL_GameControllerGetProduct(SDL_GameController *gamecontroller);
 Uint16 SDL_GameControllerGetProductVersion(SDL_GameController *gamecontroller);
+Uint16 SDL_GameControllerGetFirmwareVersion(SDL_GameController *gamecontroller);
 const char * SDL_GameControllerGetSerial(SDL_GameController *gamecontroller);
 SDL_bool SDL_GameControllerGetAttached(SDL_GameController *gamecontroller);
 SDL_Joystick * SDL_GameControllerGetJoystick(SDL_GameController *gamecontroller);
@@ -2025,12 +2130,19 @@ int SDL_GameControllerGetTouchpadFinger(SDL_GameController *gamecontroller, int 
 SDL_bool SDL_GameControllerHasSensor(SDL_GameController *gamecontroller, SDL_SensorType type);
 int SDL_GameControllerSetSensorEnabled(SDL_GameController *gamecontroller, SDL_SensorType type, SDL_bool enabled);
 SDL_bool SDL_GameControllerIsSensorEnabled(SDL_GameController *gamecontroller, SDL_SensorType type);
+float SDL_GameControllerGetSensorDataRate(SDL_GameController *gamecontroller, SDL_SensorType type);
 int SDL_GameControllerGetSensorData(SDL_GameController *gamecontroller, SDL_SensorType type, float *data, int num_values);
+int SDL_GameControllerGetSensorDataWithTimestamp(SDL_GameController *gamecontroller, SDL_SensorType type, Uint64 *timestamp, float *data, int num_values);
 int SDL_GameControllerRumble(SDL_GameController *gamecontroller, Uint16 low_frequency_rumble, Uint16 high_frequency_rumble, Uint32 duration_ms);
 int SDL_GameControllerRumbleTriggers(SDL_GameController *gamecontroller, Uint16 left_rumble, Uint16 right_rumble, Uint32 duration_ms);
 SDL_bool SDL_GameControllerHasLED(SDL_GameController *gamecontroller);
+SDL_bool SDL_GameControllerHasRumble(SDL_GameController *gamecontroller);
+SDL_bool SDL_GameControllerHasRumbleTriggers(SDL_GameController *gamecontroller);
 int SDL_GameControllerSetLED(SDL_GameController *gamecontroller, Uint8 red, Uint8 green, Uint8 blue);
+int SDL_GameControllerSendEffect(SDL_GameController *gamecontroller, const void *data, int size);
 void SDL_GameControllerClose(SDL_GameController *gamecontroller);
+const char* SDL_GameControllerGetAppleSFSymbolsNameForButton(SDL_GameController *gamecontroller, SDL_GameControllerButton button);
+const char* SDL_GameControllerGetAppleSFSymbolsNameForAxis(SDL_GameController *gamecontroller, SDL_GameControllerAxis axis);
 typedef Sint64 SDL_TouchID;
 typedef Sint64 SDL_FingerID;
 typedef enum
@@ -2049,6 +2161,7 @@ typedef struct SDL_Finger
 } SDL_Finger;
 int SDL_GetNumTouchDevices(void);
 SDL_TouchID SDL_GetTouchDevice(int index);
+const char* SDL_GetTouchName(int index);
 SDL_TouchDeviceType SDL_GetTouchDeviceType(SDL_TouchID touchID);
 int SDL_GetNumTouchFingers(SDL_TouchID touchID);
 SDL_Finger * SDL_GetTouchFinger(SDL_TouchID touchID, int index);
@@ -2076,6 +2189,7 @@ typedef enum
     SDL_TEXTEDITING,
     SDL_TEXTINPUT,
     SDL_KEYMAPCHANGED,
+    SDL_TEXTEDITING_EXT,
     SDL_MOUSEMOTION = 0x400,
     SDL_MOUSEBUTTONDOWN,
     SDL_MOUSEBUTTONUP,
@@ -2087,6 +2201,7 @@ typedef enum
     SDL_JOYBUTTONUP,
     SDL_JOYDEVICEADDED,
     SDL_JOYDEVICEREMOVED,
+    SDL_JOYBATTERYUPDATED,
     SDL_CONTROLLERAXISMOTION = 0x650,
     SDL_CONTROLLERBUTTONDOWN,
     SDL_CONTROLLERBUTTONUP,
@@ -2113,6 +2228,7 @@ typedef enum
     SDL_SENSORUPDATE = 0x1200,
     SDL_RENDER_TARGETS_RESET = 0x2000,
     SDL_RENDER_DEVICE_RESET,
+    SDL_POLLSENTINEL = 0x7F00,
     SDL_USEREVENT = 0x8000,
     SDL_LASTEVENT = 0xFFFF
 } SDL_EventType;
@@ -2164,6 +2280,15 @@ typedef struct SDL_TextEditingEvent
     Sint32 start;
     Sint32 length;
 } SDL_TextEditingEvent;
+typedef struct SDL_TextEditingExtEvent
+{
+    Uint32 type;
+    Uint32 timestamp;
+    Uint32 windowID;
+    char* text;
+    Sint32 start;
+    Sint32 length;
+} SDL_TextEditingExtEvent;
 typedef struct SDL_TextInputEvent
 {
     Uint32 type;
@@ -2205,6 +2330,10 @@ typedef struct SDL_MouseWheelEvent
     Sint32 x;
     Sint32 y;
     Uint32 direction;
+    float preciseX;
+    float preciseY;
+    Sint32 mouseX;
+    Sint32 mouseY;
 } SDL_MouseWheelEvent;
 typedef struct SDL_JoyAxisEvent
 {
@@ -2256,6 +2385,13 @@ typedef struct SDL_JoyDeviceEvent
     Uint32 timestamp;
     Sint32 which;
 } SDL_JoyDeviceEvent;
+typedef struct SDL_JoyBatteryEvent
+{
+    Uint32 type;
+    Uint32 timestamp;
+    SDL_JoystickID which;
+    SDL_JoystickPowerLevel level;
+} SDL_JoyBatteryEvent;
 typedef struct SDL_ControllerAxisEvent
 {
     Uint32 type;
@@ -2302,6 +2438,7 @@ typedef struct SDL_ControllerSensorEvent
     SDL_JoystickID which;
     Sint32 sensor;
     float data[3];
+    Uint64 timestamp_us;
 } SDL_ControllerSensorEvent;
 typedef struct SDL_AudioDeviceEvent
 {
@@ -2362,6 +2499,7 @@ typedef struct SDL_SensorEvent
     Uint32 timestamp;
     Sint32 which;
     float data[6];
+    Uint64 timestamp_us;
 } SDL_SensorEvent;
 typedef struct SDL_QuitEvent
 {
@@ -2398,6 +2536,7 @@ typedef union SDL_Event
     SDL_WindowEvent window;
     SDL_KeyboardEvent key;
     SDL_TextEditingEvent edit;
+    SDL_TextEditingExtEvent editExt;
     SDL_TextInputEvent text;
     SDL_MouseMotionEvent motion;
     SDL_MouseButtonEvent button;
@@ -2407,6 +2546,7 @@ typedef union SDL_Event
     SDL_JoyHatEvent jhat;
     SDL_JoyButtonEvent jbutton;
     SDL_JoyDeviceEvent jdevice;
+    SDL_JoyBatteryEvent jbattery;
     SDL_ControllerAxisEvent caxis;
     SDL_ControllerButtonEvent cbutton;
     SDL_ControllerDeviceEvent cdevice;
@@ -2421,9 +2561,8 @@ typedef union SDL_Event
     SDL_MultiGestureEvent mgesture;
     SDL_DollarGestureEvent dgesture;
     SDL_DropEvent drop;
-    Uint8 padding[56];
+    Uint8 padding[sizeof(void *) <= 8 ? 56 : sizeof(void *) == 16 ? 64 : 3 * sizeof(void *)];
 } SDL_Event;
-typedef int SDL_compile_time_assert_SDL_Event[(sizeof(SDL_Event) == 56) * 2 - 1];
 void SDL_PumpEvents(void);
 typedef enum
 {
@@ -2602,6 +2741,44 @@ int SDL_HapticRumbleSupported(SDL_Haptic * haptic);
 int SDL_HapticRumbleInit(SDL_Haptic * haptic);
 int SDL_HapticRumblePlay(SDL_Haptic * haptic, float strength, Uint32 length );
 int SDL_HapticRumbleStop(SDL_Haptic * haptic);
+struct SDL_hid_device_;
+typedef struct SDL_hid_device_ SDL_hid_device;
+typedef struct SDL_hid_device_info
+{
+    char *path;
+    unsigned short vendor_id;
+    unsigned short product_id;
+    wchar_t *serial_number;
+    unsigned short release_number;
+    wchar_t *manufacturer_string;
+    wchar_t *product_string;
+    unsigned short usage_page;
+    unsigned short usage;
+    int interface_number;
+    int interface_class;
+    int interface_subclass;
+    int interface_protocol;
+    struct SDL_hid_device_info *next;
+} SDL_hid_device_info;
+int SDL_hid_init(void);
+int SDL_hid_exit(void);
+Uint32 SDL_hid_device_change_count(void);
+SDL_hid_device_info * SDL_hid_enumerate(unsigned short vendor_id, unsigned short product_id);
+void SDL_hid_free_enumeration(SDL_hid_device_info *devs);
+SDL_hid_device * SDL_hid_open(unsigned short vendor_id, unsigned short product_id, const wchar_t *serial_number);
+SDL_hid_device * SDL_hid_open_path(const char *path, int bExclusive );
+int SDL_hid_write(SDL_hid_device *dev, const unsigned char *data, size_t length);
+int SDL_hid_read_timeout(SDL_hid_device *dev, unsigned char *data, size_t length, int milliseconds);
+int SDL_hid_read(SDL_hid_device *dev, unsigned char *data, size_t length);
+int SDL_hid_set_nonblocking(SDL_hid_device *dev, int nonblock);
+int SDL_hid_send_feature_report(SDL_hid_device *dev, const unsigned char *data, size_t length);
+int SDL_hid_get_feature_report(SDL_hid_device *dev, unsigned char *data, size_t length);
+void SDL_hid_close(SDL_hid_device *dev);
+int SDL_hid_get_manufacturer_string(SDL_hid_device *dev, wchar_t *string, size_t maxlen);
+int SDL_hid_get_product_string(SDL_hid_device *dev, wchar_t *string, size_t maxlen);
+int SDL_hid_get_serial_number_string(SDL_hid_device *dev, wchar_t *string, size_t maxlen);
+int SDL_hid_get_indexed_string(SDL_hid_device *dev, int string_index, wchar_t *string, size_t maxlen);
+void SDL_hid_ble_scan(SDL_bool active);
 typedef enum
 {
     SDL_HINT_DEFAULT,
@@ -2613,6 +2790,8 @@ SDL_bool SDL_SetHintWithPriority(const char *name,
                                                          SDL_HintPriority priority);
 SDL_bool SDL_SetHint(const char *name,
                                              const char *value);
+SDL_bool SDL_ResetHint(const char *name);
+void SDL_ResetHints(void);
 const char * SDL_GetHint(const char *name);
 SDL_bool SDL_GetHintBoolean(const char *name, SDL_bool default_value);
 typedef void ( *SDL_HintCallback)(void *userdata, const char *name, const char *oldValue, const char *newValue);
@@ -2760,6 +2939,12 @@ typedef struct SDL_RendererInfo
     int max_texture_width;
     int max_texture_height;
 } SDL_RendererInfo;
+typedef struct SDL_Vertex
+{
+    SDL_FPoint position;
+    SDL_Color color;
+    SDL_FPoint tex_coord;
+} SDL_Vertex;
 typedef enum
 {
     SDL_ScaleModeNearest,
@@ -2798,6 +2983,7 @@ SDL_Renderer * SDL_CreateRenderer(SDL_Window * window,
                                                int index, Uint32 flags);
 SDL_Renderer * SDL_CreateSoftwareRenderer(SDL_Surface * surface);
 SDL_Renderer * SDL_GetRenderer(SDL_Window * window);
+SDL_Window * SDL_RenderGetWindow(SDL_Renderer *renderer);
 int SDL_GetRendererInfo(SDL_Renderer * renderer,
                                                 SDL_RendererInfo * info);
 int SDL_GetRendererOutputSize(SDL_Renderer * renderer,
@@ -2827,6 +3013,9 @@ int SDL_SetTextureScaleMode(SDL_Texture * texture,
                                                     SDL_ScaleMode scaleMode);
 int SDL_GetTextureScaleMode(SDL_Texture * texture,
                                                     SDL_ScaleMode *scaleMode);
+int SDL_SetTextureUserData(SDL_Texture * texture,
+                                                   void *userdata);
+void * SDL_GetTextureUserData(SDL_Texture * texture);
 int SDL_UpdateTexture(SDL_Texture * texture,
                                               const SDL_Rect * rect,
                                               const void *pixels, int pitch);
@@ -2868,6 +3057,12 @@ int SDL_RenderSetScale(SDL_Renderer * renderer,
                                                float scaleX, float scaleY);
 void SDL_RenderGetScale(SDL_Renderer * renderer,
                                                float *scaleX, float *scaleY);
+void SDL_RenderWindowToLogical(SDL_Renderer * renderer,
+                                                            int windowX, int windowY,
+                                                            float *logicalX, float *logicalY);
+void SDL_RenderLogicalToWindow(SDL_Renderer * renderer,
+                                                            float logicalX, float logicalY,
+                                                            int *windowX, int *windowY);
 int SDL_SetRenderDrawColor(SDL_Renderer * renderer,
                                            Uint8 r, Uint8 g, Uint8 b,
                                            Uint8 a);
@@ -2941,6 +3136,17 @@ int SDL_RenderCopyExF(SDL_Renderer * renderer,
                                             const double angle,
                                             const SDL_FPoint *center,
                                             const SDL_RendererFlip flip);
+int SDL_RenderGeometry(SDL_Renderer *renderer,
+                                               SDL_Texture *texture,
+                                               const SDL_Vertex *vertices, int num_vertices,
+                                               const int *indices, int num_indices);
+int SDL_RenderGeometryRaw(SDL_Renderer *renderer,
+                                               SDL_Texture *texture,
+                                               const float *xy, int xy_stride,
+                                               const SDL_Color *color, int color_stride,
+                                               const float *uv, int uv_stride,
+                                               int num_vertices,
+                                               const void *indices, int num_indices, int size_indices);
 int SDL_RenderReadPixels(SDL_Renderer * renderer,
                                                  const SDL_Rect * rect,
                                                  Uint32 format,
@@ -2953,6 +3159,7 @@ int SDL_GL_BindTexture(SDL_Texture *texture, float *texw, float *texh);
 int SDL_GL_UnbindTexture(SDL_Texture *texture);
 void * SDL_RenderGetMetalLayer(SDL_Renderer * renderer);
 void * SDL_RenderGetMetalCommandEncoder(SDL_Renderer * renderer);
+int SDL_RenderSetVSync(SDL_Renderer* renderer, int vsync);
 SDL_Window * SDL_CreateShapedWindow(const char *title,unsigned int x,unsigned int y,unsigned int w,unsigned int h,Uint32 flags);
 SDL_bool SDL_IsShapedWindow(const SDL_Window *window);
 typedef enum {
@@ -2978,6 +3185,8 @@ typedef struct IDirect3DDevice9 IDirect3DDevice9;
 IDirect3DDevice9* SDL_RenderGetD3D9Device(SDL_Renderer * renderer);
 typedef struct ID3D11Device ID3D11Device;
 ID3D11Device* SDL_RenderGetD3D11Device(SDL_Renderer * renderer);
+typedef struct ID3D12Device ID3D12Device;
+ID3D12Device* SDL_RenderGetD3D12Device(SDL_Renderer* renderer);
 SDL_bool SDL_DXGIGetOutputInfo( int displayIndex, int *adapterIndex, int *outputIndex );
 SDL_bool SDL_IsTablet(void);
 void SDL_OnApplicationWillTerminate(void);
@@ -2987,6 +3196,7 @@ void SDL_OnApplicationDidEnterBackground(void);
 void SDL_OnApplicationWillEnterForeground(void);
 void SDL_OnApplicationDidBecomeActive(void);
 Uint32 SDL_GetTicks(void);
+Uint64 SDL_GetTicks64(void);
 Uint64 SDL_GetPerformanceCounter(void);
 Uint64 SDL_GetPerformanceFrequency(void);
 void SDL_Delay(Uint32 ms);
@@ -3026,6 +3236,7 @@ static const int SDL_JOYSTICK_DINPUT = 1;
 static const int SDL_JOYSTICK_HIDAPI = 1;
 static const int SDL_JOYSTICK_RAWINPUT = 1;
 static const int SDL_JOYSTICK_VIRTUAL = 1;
+static const int SDL_JOYSTICK_WGI = 1;
 static const int SDL_JOYSTICK_XINPUT = 1;
 static const int SDL_HAPTIC_DINPUT = 1;
 static const int SDL_HAPTIC_XINPUT = 1;
@@ -3037,6 +3248,7 @@ static const int SDL_TIMER_WINDOWS = 1;
 static const int SDL_VIDEO_DRIVER_DUMMY = 1;
 static const int SDL_VIDEO_DRIVER_WINDOWS = 1;
 static const int SDL_VIDEO_RENDER_D3D = 1;
+static const int SDL_VIDEO_RENDER_D3D11 = 1;
 static const int SDL_VIDEO_OPENGL = 1;
 static const int SDL_VIDEO_OPENGL_WGL = 1;
 static const int SDL_VIDEO_RENDER_OGL = 1;
@@ -3046,7 +3258,6 @@ static const int SDL_VIDEO_OPENGL_EGL = 1;
 static const int SDL_VIDEO_VULKAN = 1;
 static const int SDL_POWER_WINDOWS = 1;
 static const int SDL_FILESYSTEM_WINDOWS = 1;
-static const int SDL_ASSEMBLY_ROUTINES = 1;
 static const int SDL_MAX_SINT8 = ((Sint8)0x7F);
 static const int SDL_MIN_SINT8 = ((Sint8)(~0x7F));
 static const int SDL_MAX_UINT8 = ((Uint8)0xFF);
@@ -3076,6 +3287,7 @@ static const int SDL_NULL_WHILE_LOOP_CONDITION = (0);
 static const int SDL_LIL_ENDIAN = 1234;
 static const int SDL_BIG_ENDIAN = 4321;
 static const int SDL_BYTEORDER = SDL_LIL_ENDIAN;
+static const int SDL_FLOATWORDORDER = SDL_LIL_ENDIAN;
 static const int SDL_MUTEX_TIMEDOUT = 1;
 static const int SDL_MUTEX_MAXWAIT = (~(Uint32)0);
 static const int SDL_RWOPS_UNKNOWN = 0U;
@@ -3134,6 +3346,7 @@ static const int SDL_BUTTON_MIDDLE = 2;
 static const int SDL_BUTTON_RIGHT = 3;
 static const int SDL_BUTTON_X1 = 4;
 static const int SDL_BUTTON_X2 = 5;
+static const int SDL_VIRTUAL_JOYSTICK_DESC_VERSION = 1;
 static const int SDL_JOYSTICK_AXIS_MAX = 32767;
 static const int SDL_JOYSTICK_AXIS_MIN = -32768;
 static const int SDL_HAT_CENTERED = 0x00;
@@ -3176,130 +3389,185 @@ static const int SDL_HAPTIC_CARTESIAN = 1;
 static const int SDL_HAPTIC_SPHERICAL = 2;
 static const int SDL_HAPTIC_STEERING_AXIS = 3;
 static const int SDL_HAPTIC_INFINITY = 4294967295U;
-static const int SDL_HINT_FRAMEBUFFER_ACCELERATION = "SDL_FRAMEBUFFER_ACCELERATION";
-static const int SDL_HINT_RENDER_DRIVER = "SDL_RENDER_DRIVER";
-static const int SDL_HINT_RENDER_OPENGL_SHADERS = "SDL_RENDER_OPENGL_SHADERS";
-static const int SDL_HINT_RENDER_DIRECT3D_THREADSAFE = "SDL_RENDER_DIRECT3D_THREADSAFE";
-static const int SDL_HINT_RENDER_DIRECT3D11_DEBUG = "SDL_RENDER_DIRECT3D11_DEBUG";
-static const int SDL_HINT_RENDER_LOGICAL_SIZE_MODE = "SDL_RENDER_LOGICAL_SIZE_MODE";
-static const int SDL_HINT_RENDER_SCALE_QUALITY = "SDL_RENDER_SCALE_QUALITY";
-static const int SDL_HINT_RENDER_VSYNC = "SDL_RENDER_VSYNC";
-static const int SDL_HINT_VIDEO_ALLOW_SCREENSAVER = "SDL_VIDEO_ALLOW_SCREENSAVER";
-static const int SDL_HINT_VIDEO_EXTERNAL_CONTEXT = "SDL_VIDEO_EXTERNAL_CONTEXT";
-static const int SDL_HINT_VIDEO_X11_XVIDMODE = "SDL_VIDEO_X11_XVIDMODE";
-static const int SDL_HINT_VIDEO_X11_XINERAMA = "SDL_VIDEO_X11_XINERAMA";
-static const int SDL_HINT_VIDEO_X11_XRANDR = "SDL_VIDEO_X11_XRANDR";
-static const int SDL_HINT_VIDEO_X11_WINDOW_VISUALID = "SDL_VIDEO_X11_WINDOW_VISUALID";
-static const int SDL_HINT_VIDEO_X11_NET_WM_PING = "SDL_VIDEO_X11_NET_WM_PING";
-static const int SDL_HINT_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR = "SDL_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR";
-static const int SDL_HINT_VIDEO_X11_FORCE_EGL = "SDL_VIDEO_X11_FORCE_EGL";
-static const int SDL_HINT_WINDOW_FRAME_USABLE_WHILE_CURSOR_HIDDEN = "SDL_WINDOW_FRAME_USABLE_WHILE_CURSOR_HIDDEN";
-static const int SDL_HINT_WINDOWS_INTRESOURCE_ICON = "SDL_WINDOWS_INTRESOURCE_ICON";
-static const int SDL_HINT_WINDOWS_INTRESOURCE_ICON_SMALL = "SDL_WINDOWS_INTRESOURCE_ICON_SMALL";
-static const int SDL_HINT_WINDOWS_ENABLE_MESSAGELOOP = "SDL_WINDOWS_ENABLE_MESSAGELOOP";
-static const int SDL_HINT_GRAB_KEYBOARD = "SDL_GRAB_KEYBOARD";
-static const int SDL_HINT_MOUSE_DOUBLE_CLICK_TIME = "SDL_MOUSE_DOUBLE_CLICK_TIME";
-static const int SDL_HINT_MOUSE_DOUBLE_CLICK_RADIUS = "SDL_MOUSE_DOUBLE_CLICK_RADIUS";
-static const int SDL_HINT_MOUSE_NORMAL_SPEED_SCALE = "SDL_MOUSE_NORMAL_SPEED_SCALE";
-static const int SDL_HINT_MOUSE_RELATIVE_SPEED_SCALE = "SDL_MOUSE_RELATIVE_SPEED_SCALE";
-static const int SDL_HINT_MOUSE_RELATIVE_SCALING = "SDL_MOUSE_RELATIVE_SCALING";
-static const int SDL_HINT_MOUSE_RELATIVE_MODE_WARP = "SDL_MOUSE_RELATIVE_MODE_WARP";
-static const int SDL_HINT_MOUSE_FOCUS_CLICKTHROUGH = "SDL_MOUSE_FOCUS_CLICKTHROUGH";
-static const int SDL_HINT_TOUCH_MOUSE_EVENTS = "SDL_TOUCH_MOUSE_EVENTS";
-static const int SDL_HINT_MOUSE_TOUCH_EVENTS = "SDL_MOUSE_TOUCH_EVENTS";
-static const int SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS = "SDL_VIDEO_MINIMIZE_ON_FOCUS_LOSS";
-static const int SDL_HINT_IDLE_TIMER_DISABLED = "SDL_IOS_IDLE_TIMER_DISABLED";
-static const int SDL_HINT_ORIENTATIONS = "SDL_IOS_ORIENTATIONS";
+static const int SDL_HINT_ACCELEROMETER_AS_JOYSTICK = "SDL_ACCELEROMETER_AS_JOYSTICK";
+static const int SDL_HINT_ALLOW_ALT_TAB_WHILE_GRABBED = "SDL_ALLOW_ALT_TAB_WHILE_GRABBED";
+static const int SDL_HINT_ALLOW_TOPMOST = "SDL_ALLOW_TOPMOST";
+static const int SDL_HINT_ANDROID_APK_EXPANSION_MAIN_FILE_VERSION = "SDL_ANDROID_APK_EXPANSION_MAIN_FILE_VERSION";
+static const int SDL_HINT_ANDROID_APK_EXPANSION_PATCH_FILE_VERSION = "SDL_ANDROID_APK_EXPANSION_PATCH_FILE_VERSION";
+static const int SDL_HINT_ANDROID_BLOCK_ON_PAUSE = "SDL_ANDROID_BLOCK_ON_PAUSE";
+static const int SDL_HINT_ANDROID_BLOCK_ON_PAUSE_PAUSEAUDIO = "SDL_ANDROID_BLOCK_ON_PAUSE_PAUSEAUDIO";
+static const int SDL_HINT_ANDROID_TRAP_BACK_BUTTON = "SDL_ANDROID_TRAP_BACK_BUTTON";
+static const int SDL_HINT_APP_NAME = "SDL_APP_NAME";
 static const int SDL_HINT_APPLE_TV_CONTROLLER_UI_EVENTS = "SDL_APPLE_TV_CONTROLLER_UI_EVENTS";
 static const int SDL_HINT_APPLE_TV_REMOTE_ALLOW_ROTATION = "SDL_APPLE_TV_REMOTE_ALLOW_ROTATION";
-static const int SDL_HINT_IOS_HIDE_HOME_INDICATOR = "SDL_IOS_HIDE_HOME_INDICATOR";
-static const int SDL_HINT_ACCELEROMETER_AS_JOYSTICK = "SDL_ACCELEROMETER_AS_JOYSTICK";
-static const int SDL_HINT_TV_REMOTE_AS_JOYSTICK = "SDL_TV_REMOTE_AS_JOYSTICK";
-static const int SDL_HINT_XINPUT_ENABLED = "SDL_XINPUT_ENABLED";
-static const int SDL_HINT_XINPUT_USE_OLD_JOYSTICK_MAPPING = "SDL_XINPUT_USE_OLD_JOYSTICK_MAPPING";
-static const int SDL_HINT_GAMECONTROLLERTYPE = "SDL_GAMECONTROLLERTYPE";
+static const int SDL_HINT_AUDIO_CATEGORY = "SDL_AUDIO_CATEGORY";
+static const int SDL_HINT_AUDIO_DEVICE_APP_NAME = "SDL_AUDIO_DEVICE_APP_NAME";
+static const int SDL_HINT_AUDIO_DEVICE_STREAM_NAME = "SDL_AUDIO_DEVICE_STREAM_NAME";
+static const int SDL_HINT_AUDIO_DEVICE_STREAM_ROLE = "SDL_AUDIO_DEVICE_STREAM_ROLE";
+static const int SDL_HINT_AUDIO_RESAMPLING_MODE = "SDL_AUDIO_RESAMPLING_MODE";
+static const int SDL_HINT_AUTO_UPDATE_JOYSTICKS = "SDL_AUTO_UPDATE_JOYSTICKS";
+static const int SDL_HINT_AUTO_UPDATE_SENSORS = "SDL_AUTO_UPDATE_SENSORS";
+static const int SDL_HINT_BMP_SAVE_LEGACY_FORMAT = "SDL_BMP_SAVE_LEGACY_FORMAT";
+static const int SDL_HINT_DISPLAY_USABLE_BOUNDS = "SDL_DISPLAY_USABLE_BOUNDS";
+static const int SDL_HINT_EMSCRIPTEN_ASYNCIFY = "SDL_EMSCRIPTEN_ASYNCIFY";
+static const int SDL_HINT_EMSCRIPTEN_KEYBOARD_ELEMENT = "SDL_EMSCRIPTEN_KEYBOARD_ELEMENT";
+static const int SDL_HINT_ENABLE_STEAM_CONTROLLERS = "SDL_ENABLE_STEAM_CONTROLLERS";
+static const int SDL_HINT_EVENT_LOGGING = "SDL_EVENT_LOGGING";
+static const int SDL_HINT_FORCE_RAISEWINDOW = "SDL_HINT_FORCE_RAISEWINDOW";
+static const int SDL_HINT_FRAMEBUFFER_ACCELERATION = "SDL_FRAMEBUFFER_ACCELERATION";
 static const int SDL_HINT_GAMECONTROLLERCONFIG = "SDL_GAMECONTROLLERCONFIG";
 static const int SDL_HINT_GAMECONTROLLERCONFIG_FILE = "SDL_GAMECONTROLLERCONFIG_FILE";
+static const int SDL_HINT_GAMECONTROLLERTYPE = "SDL_GAMECONTROLLERTYPE";
 static const int SDL_HINT_GAMECONTROLLER_IGNORE_DEVICES = "SDL_GAMECONTROLLER_IGNORE_DEVICES";
 static const int SDL_HINT_GAMECONTROLLER_IGNORE_DEVICES_EXCEPT = "SDL_GAMECONTROLLER_IGNORE_DEVICES_EXCEPT";
 static const int SDL_HINT_GAMECONTROLLER_USE_BUTTON_LABELS = "SDL_GAMECONTROLLER_USE_BUTTON_LABELS";
+static const int SDL_HINT_GRAB_KEYBOARD = "SDL_GRAB_KEYBOARD";
+static const int SDL_HINT_HIDAPI_IGNORE_DEVICES = "SDL_HIDAPI_IGNORE_DEVICES";
+static const int SDL_HINT_IDLE_TIMER_DISABLED = "SDL_IOS_IDLE_TIMER_DISABLED";
+static const int SDL_HINT_IME_INTERNAL_EDITING = "SDL_IME_INTERNAL_EDITING";
+static const int SDL_HINT_IME_SHOW_UI = "SDL_IME_SHOW_UI";
+static const int SDL_HINT_IME_SUPPORT_EXTENDED_TEXT = "SDL_IME_SUPPORT_EXTENDED_TEXT";
+static const int SDL_HINT_IOS_HIDE_HOME_INDICATOR = "SDL_IOS_HIDE_HOME_INDICATOR";
 static const int SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS = "SDL_JOYSTICK_ALLOW_BACKGROUND_EVENTS";
 static const int SDL_HINT_JOYSTICK_HIDAPI = "SDL_JOYSTICK_HIDAPI";
+static const int SDL_HINT_JOYSTICK_HIDAPI_GAMECUBE = "SDL_JOYSTICK_HIDAPI_GAMECUBE";
+static const int SDL_HINT_JOYSTICK_GAMECUBE_RUMBLE_BRAKE = "SDL_JOYSTICK_GAMECUBE_RUMBLE_BRAKE";
+static const int SDL_HINT_JOYSTICK_HIDAPI_JOY_CONS = "SDL_JOYSTICK_HIDAPI_JOY_CONS";
+static const int SDL_HINT_JOYSTICK_HIDAPI_COMBINE_JOY_CONS = "SDL_JOYSTICK_HIDAPI_COMBINE_JOY_CONS";
+static const int SDL_HINT_JOYSTICK_HIDAPI_VERTICAL_JOY_CONS = "SDL_JOYSTICK_HIDAPI_VERTICAL_JOY_CONS";
+static const int SDL_HINT_JOYSTICK_HIDAPI_LUNA = "SDL_JOYSTICK_HIDAPI_LUNA";
+static const int SDL_HINT_JOYSTICK_HIDAPI_NINTENDO_CLASSIC = "SDL_JOYSTICK_HIDAPI_NINTENDO_CLASSIC";
+static const int SDL_HINT_JOYSTICK_HIDAPI_SHIELD = "SDL_JOYSTICK_HIDAPI_SHIELD";
+static const int SDL_HINT_JOYSTICK_HIDAPI_PS3 = "SDL_JOYSTICK_HIDAPI_PS3";
 static const int SDL_HINT_JOYSTICK_HIDAPI_PS4 = "SDL_JOYSTICK_HIDAPI_PS4";
 static const int SDL_HINT_JOYSTICK_HIDAPI_PS4_RUMBLE = "SDL_JOYSTICK_HIDAPI_PS4_RUMBLE";
 static const int SDL_HINT_JOYSTICK_HIDAPI_PS5 = "SDL_JOYSTICK_HIDAPI_PS5";
-static const int SDL_HINT_JOYSTICK_HIDAPI_PS5_RUMBLE = "SDL_JOYSTICK_HIDAPI_PS5_RUMBLE";
 static const int SDL_HINT_JOYSTICK_HIDAPI_PS5_PLAYER_LED = "SDL_JOYSTICK_HIDAPI_PS5_PLAYER_LED";
+static const int SDL_HINT_JOYSTICK_HIDAPI_PS5_RUMBLE = "SDL_JOYSTICK_HIDAPI_PS5_RUMBLE";
 static const int SDL_HINT_JOYSTICK_HIDAPI_STADIA = "SDL_JOYSTICK_HIDAPI_STADIA";
 static const int SDL_HINT_JOYSTICK_HIDAPI_STEAM = "SDL_JOYSTICK_HIDAPI_STEAM";
 static const int SDL_HINT_JOYSTICK_HIDAPI_SWITCH = "SDL_JOYSTICK_HIDAPI_SWITCH";
 static const int SDL_HINT_JOYSTICK_HIDAPI_SWITCH_HOME_LED = "SDL_JOYSTICK_HIDAPI_SWITCH_HOME_LED";
-static const int SDL_HINT_JOYSTICK_HIDAPI_JOY_CONS = "SDL_JOYSTICK_HIDAPI_JOY_CONS";
+static const int SDL_HINT_JOYSTICK_HIDAPI_JOYCON_HOME_LED = "SDL_JOYSTICK_HIDAPI_JOYCON_HOME_LED";
+static const int SDL_HINT_JOYSTICK_HIDAPI_SWITCH_PLAYER_LED = "SDL_JOYSTICK_HIDAPI_SWITCH_PLAYER_LED";
+static const int SDL_HINT_JOYSTICK_HIDAPI_WII = "SDL_JOYSTICK_HIDAPI_WII";
+static const int SDL_HINT_JOYSTICK_HIDAPI_WII_PLAYER_LED = "SDL_JOYSTICK_HIDAPI_WII_PLAYER_LED";
 static const int SDL_HINT_JOYSTICK_HIDAPI_XBOX = "SDL_JOYSTICK_HIDAPI_XBOX";
-static const int SDL_HINT_JOYSTICK_HIDAPI_CORRELATE_XINPUT = "SDL_JOYSTICK_HIDAPI_CORRELATE_XINPUT";
-static const int SDL_HINT_JOYSTICK_HIDAPI_GAMECUBE = "SDL_JOYSTICK_HIDAPI_GAMECUBE";
-static const int SDL_HINT_ENABLE_STEAM_CONTROLLERS = "SDL_ENABLE_STEAM_CONTROLLERS";
+static const int SDL_HINT_JOYSTICK_HIDAPI_XBOX_360 = "SDL_JOYSTICK_HIDAPI_XBOX_360";
+static const int SDL_HINT_JOYSTICK_HIDAPI_XBOX_360_PLAYER_LED = "SDL_JOYSTICK_HIDAPI_XBOX_360_PLAYER_LED";
+static const int SDL_HINT_JOYSTICK_HIDAPI_XBOX_360_WIRELESS = "SDL_JOYSTICK_HIDAPI_XBOX_360_WIRELESS";
+static const int SDL_HINT_JOYSTICK_HIDAPI_XBOX_ONE = "SDL_JOYSTICK_HIDAPI_XBOX_ONE";
+static const int SDL_HINT_JOYSTICK_HIDAPI_XBOX_ONE_HOME_LED = "SDL_JOYSTICK_HIDAPI_XBOX_ONE_HOME_LED";
 static const int SDL_HINT_JOYSTICK_RAWINPUT = "SDL_JOYSTICK_RAWINPUT";
+static const int SDL_HINT_JOYSTICK_RAWINPUT_CORRELATE_XINPUT = "SDL_JOYSTICK_RAWINPUT_CORRELATE_XINPUT";
+static const int SDL_HINT_JOYSTICK_ROG_CHAKRAM = "SDL_JOYSTICK_ROG_CHAKRAM";
 static const int SDL_HINT_JOYSTICK_THREAD = "SDL_JOYSTICK_THREAD";
+static const int SDL_HINT_KMSDRM_REQUIRE_DRM_MASTER = "SDL_KMSDRM_REQUIRE_DRM_MASTER";
+static const int SDL_HINT_JOYSTICK_DEVICE = "SDL_JOYSTICK_DEVICE";
+static const int SDL_HINT_LINUX_DIGITAL_HATS = "SDL_LINUX_DIGITAL_HATS";
+static const int SDL_HINT_LINUX_HAT_DEADZONES = "SDL_LINUX_HAT_DEADZONES";
+static const int SDL_HINT_LINUX_JOYSTICK_CLASSIC = "SDL_LINUX_JOYSTICK_CLASSIC";
 static const int SDL_HINT_LINUX_JOYSTICK_DEADZONES = "SDL_LINUX_JOYSTICK_DEADZONES";
-static const int SDL_HINT_ALLOW_TOPMOST = "SDL_ALLOW_TOPMOST";
-static const int SDL_HINT_TIMER_RESOLUTION = "SDL_TIMER_RESOLUTION";
+static const int SDL_HINT_MAC_BACKGROUND_APP = "SDL_MAC_BACKGROUND_APP";
+static const int SDL_HINT_MAC_CTRL_CLICK_EMULATE_RIGHT_CLICK = "SDL_MAC_CTRL_CLICK_EMULATE_RIGHT_CLICK";
+static const int SDL_HINT_MAC_OPENGL_ASYNC_DISPATCH = "SDL_MAC_OPENGL_ASYNC_DISPATCH";
+static const int SDL_HINT_MOUSE_DOUBLE_CLICK_RADIUS = "SDL_MOUSE_DOUBLE_CLICK_RADIUS";
+static const int SDL_HINT_MOUSE_DOUBLE_CLICK_TIME = "SDL_MOUSE_DOUBLE_CLICK_TIME";
+static const int SDL_HINT_MOUSE_FOCUS_CLICKTHROUGH = "SDL_MOUSE_FOCUS_CLICKTHROUGH";
+static const int SDL_HINT_MOUSE_NORMAL_SPEED_SCALE = "SDL_MOUSE_NORMAL_SPEED_SCALE";
+static const int SDL_HINT_MOUSE_RELATIVE_MODE_CENTER = "SDL_MOUSE_RELATIVE_MODE_CENTER";
+static const int SDL_HINT_MOUSE_RELATIVE_MODE_WARP = "SDL_MOUSE_RELATIVE_MODE_WARP";
+static const int SDL_HINT_MOUSE_RELATIVE_SCALING = "SDL_MOUSE_RELATIVE_SCALING";
+static const int SDL_HINT_MOUSE_RELATIVE_SPEED_SCALE = "SDL_MOUSE_RELATIVE_SPEED_SCALE";
+static const int SDL_HINT_MOUSE_RELATIVE_SYSTEM_SCALE = "SDL_MOUSE_RELATIVE_SYSTEM_SCALE";
+static const int SDL_HINT_MOUSE_RELATIVE_WARP_MOTION = "SDL_MOUSE_RELATIVE_WARP_MOTION";
+static const int SDL_HINT_MOUSE_TOUCH_EVENTS = "SDL_MOUSE_TOUCH_EVENTS";
+static const int SDL_HINT_MOUSE_AUTO_CAPTURE = "SDL_MOUSE_AUTO_CAPTURE";
+static const int SDL_HINT_NO_SIGNAL_HANDLERS = "SDL_NO_SIGNAL_HANDLERS";
+static const int SDL_HINT_OPENGL_ES_DRIVER = "SDL_OPENGL_ES_DRIVER";
+static const int SDL_HINT_ORIENTATIONS = "SDL_IOS_ORIENTATIONS";
+static const int SDL_HINT_POLL_SENTINEL = "SDL_POLL_SENTINEL";
+static const int SDL_HINT_PREFERRED_LOCALES = "SDL_PREFERRED_LOCALES";
 static const int SDL_HINT_QTWAYLAND_CONTENT_ORIENTATION = "SDL_QTWAYLAND_CONTENT_ORIENTATION";
 static const int SDL_HINT_QTWAYLAND_WINDOW_FLAGS = "SDL_QTWAYLAND_WINDOW_FLAGS";
-static const int SDL_HINT_THREAD_STACK_SIZE = "SDL_THREAD_STACK_SIZE";
-static const int SDL_HINT_THREAD_PRIORITY_POLICY = "SDL_THREAD_PRIORITY_POLICY";
-static const int SDL_HINT_THREAD_FORCE_REALTIME_TIME_CRITICAL = "SDL_THREAD_FORCE_REALTIME_TIME_CRITICAL";
-static const int SDL_HINT_VIDEO_HIGHDPI_DISABLED = "SDL_VIDEO_HIGHDPI_DISABLED";
-static const int SDL_HINT_MAC_CTRL_CLICK_EMULATE_RIGHT_CLICK = "SDL_MAC_CTRL_CLICK_EMULATE_RIGHT_CLICK";
-static const int SDL_HINT_VIDEO_WIN_D3DCOMPILER = "SDL_VIDEO_WIN_D3DCOMPILER";
-static const int SDL_HINT_VIDEO_WINDOW_SHARE_PIXEL_FORMAT = "SDL_VIDEO_WINDOW_SHARE_PIXEL_FORMAT";
-static const int SDL_HINT_WINRT_PRIVACY_POLICY_URL = "SDL_WINRT_PRIVACY_POLICY_URL";
-static const int SDL_HINT_WINRT_PRIVACY_POLICY_LABEL = "SDL_WINRT_PRIVACY_POLICY_LABEL";
-static const int SDL_HINT_WINRT_HANDLE_BACK_BUTTON = "SDL_WINRT_HANDLE_BACK_BUTTON";
-static const int SDL_HINT_VIDEO_MAC_FULLSCREEN_SPACES = "SDL_VIDEO_MAC_FULLSCREEN_SPACES";
-static const int SDL_HINT_MAC_BACKGROUND_APP = "SDL_MAC_BACKGROUND_APP";
-static const int SDL_HINT_ANDROID_APK_EXPANSION_MAIN_FILE_VERSION = "SDL_ANDROID_APK_EXPANSION_MAIN_FILE_VERSION";
-static const int SDL_HINT_ANDROID_APK_EXPANSION_PATCH_FILE_VERSION = "SDL_ANDROID_APK_EXPANSION_PATCH_FILE_VERSION";
-static const int SDL_HINT_IME_INTERNAL_EDITING = "SDL_IME_INTERNAL_EDITING";
-static const int SDL_HINT_ANDROID_TRAP_BACK_BUTTON = "SDL_ANDROID_TRAP_BACK_BUTTON";
-static const int SDL_HINT_ANDROID_BLOCK_ON_PAUSE = "SDL_ANDROID_BLOCK_ON_PAUSE";
-static const int SDL_HINT_ANDROID_BLOCK_ON_PAUSE_PAUSEAUDIO = "SDL_ANDROID_BLOCK_ON_PAUSE_PAUSEAUDIO";
-static const int SDL_HINT_RETURN_KEY_HIDES_IME = "SDL_RETURN_KEY_HIDES_IME";
-static const int SDL_HINT_EMSCRIPTEN_KEYBOARD_ELEMENT = "SDL_EMSCRIPTEN_KEYBOARD_ELEMENT";
-static const int SDL_HINT_EMSCRIPTEN_ASYNCIFY = "SDL_EMSCRIPTEN_ASYNCIFY";
-static const int SDL_HINT_NO_SIGNAL_HANDLERS = "SDL_NO_SIGNAL_HANDLERS";
-static const int SDL_HINT_WINDOWS_NO_CLOSE_ON_ALT_F4 = "SDL_WINDOWS_NO_CLOSE_ON_ALT_F4";
-static const int SDL_HINT_BMP_SAVE_LEGACY_FORMAT = "SDL_BMP_SAVE_LEGACY_FORMAT";
-static const int SDL_HINT_WINDOWS_DISABLE_THREAD_NAMING = "SDL_WINDOWS_DISABLE_THREAD_NAMING";
-static const int SDL_HINT_WINDOWS_FORCE_MUTEX_CRITICAL_SECTIONS = "SDL_WINDOWS_FORCE_MUTEX_CRITICAL_SECTIONS";
-static const int SDL_HINT_WINDOWS_FORCE_SEMAPHORE_KERNEL = "SDL_WINDOWS_FORCE_SEMAPHORE_KERNEL";
-static const int SDL_HINT_WINDOWS_USE_D3D9EX = "SDL_WINDOWS_USE_D3D9EX";
-static const int SDL_HINT_RPI_VIDEO_LAYER = "SDL_RPI_VIDEO_LAYER";
-static const int SDL_HINT_VIDEO_DOUBLE_BUFFER = "SDL_VIDEO_DOUBLE_BUFFER";
-static const int SDL_HINT_KMSDRM_REQUIRE_DRM_MASTER = "SDL_KMSDRM_REQUIRE_DRM_MASTER";
-static const int SDL_HINT_OPENGL_ES_DRIVER = "SDL_OPENGL_ES_DRIVER";
-static const int SDL_HINT_AUDIO_RESAMPLING_MODE = "SDL_AUDIO_RESAMPLING_MODE";
-static const int SDL_HINT_AUDIO_CATEGORY = "SDL_AUDIO_CATEGORY";
 static const int SDL_HINT_RENDER_BATCHING = "SDL_RENDER_BATCHING";
-static const int SDL_HINT_AUTO_UPDATE_JOYSTICKS = "SDL_AUTO_UPDATE_JOYSTICKS";
-static const int SDL_HINT_AUTO_UPDATE_SENSORS = "SDL_AUTO_UPDATE_SENSORS";
-static const int SDL_HINT_EVENT_LOGGING = "SDL_EVENT_LOGGING";
+static const int SDL_HINT_RENDER_LINE_METHOD = "SDL_RENDER_LINE_METHOD";
+static const int SDL_HINT_RENDER_DIRECT3D11_DEBUG = "SDL_RENDER_DIRECT3D11_DEBUG";
+static const int SDL_HINT_RENDER_DIRECT3D_THREADSAFE = "SDL_RENDER_DIRECT3D_THREADSAFE";
+static const int SDL_HINT_RENDER_DRIVER = "SDL_RENDER_DRIVER";
+static const int SDL_HINT_RENDER_LOGICAL_SIZE_MODE = "SDL_RENDER_LOGICAL_SIZE_MODE";
+static const int SDL_HINT_RENDER_OPENGL_SHADERS = "SDL_RENDER_OPENGL_SHADERS";
+static const int SDL_HINT_RENDER_SCALE_QUALITY = "SDL_RENDER_SCALE_QUALITY";
+static const int SDL_HINT_RENDER_VSYNC = "SDL_RENDER_VSYNC";
+static const int SDL_HINT_PS2_DYNAMIC_VSYNC = "SDL_PS2_DYNAMIC_VSYNC";
+static const int SDL_HINT_RETURN_KEY_HIDES_IME = "SDL_RETURN_KEY_HIDES_IME";
+static const int SDL_HINT_RPI_VIDEO_LAYER = "SDL_RPI_VIDEO_LAYER";
+static const int SDL_HINT_SCREENSAVER_INHIBIT_ACTIVITY_NAME = "SDL_SCREENSAVER_INHIBIT_ACTIVITY_NAME";
+static const int SDL_HINT_THREAD_FORCE_REALTIME_TIME_CRITICAL = "SDL_THREAD_FORCE_REALTIME_TIME_CRITICAL";
+static const int SDL_HINT_THREAD_PRIORITY_POLICY = "SDL_THREAD_PRIORITY_POLICY";
+static const int SDL_HINT_THREAD_STACK_SIZE = "SDL_THREAD_STACK_SIZE";
+static const int SDL_HINT_TIMER_RESOLUTION = "SDL_TIMER_RESOLUTION";
+static const int SDL_HINT_TOUCH_MOUSE_EVENTS = "SDL_TOUCH_MOUSE_EVENTS";
+static const int SDL_HINT_VITA_TOUCH_MOUSE_DEVICE = "SDL_HINT_VITA_TOUCH_MOUSE_DEVICE";
+static const int SDL_HINT_TV_REMOTE_AS_JOYSTICK = "SDL_TV_REMOTE_AS_JOYSTICK";
+static const int SDL_HINT_VIDEO_ALLOW_SCREENSAVER = "SDL_VIDEO_ALLOW_SCREENSAVER";
+static const int SDL_HINT_VIDEO_DOUBLE_BUFFER = "SDL_VIDEO_DOUBLE_BUFFER";
+static const int SDL_HINT_VIDEO_EGL_ALLOW_TRANSPARENCY = "SDL_VIDEO_EGL_ALLOW_TRANSPARENCY";
+static const int SDL_HINT_VIDEO_EXTERNAL_CONTEXT = "SDL_VIDEO_EXTERNAL_CONTEXT";
+static const int SDL_HINT_VIDEO_HIGHDPI_DISABLED = "SDL_VIDEO_HIGHDPI_DISABLED";
+static const int SDL_HINT_VIDEO_MAC_FULLSCREEN_SPACES = "SDL_VIDEO_MAC_FULLSCREEN_SPACES";
+static const int SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS = "SDL_VIDEO_MINIMIZE_ON_FOCUS_LOSS";
+static const int SDL_HINT_VIDEO_WAYLAND_ALLOW_LIBDECOR = "SDL_VIDEO_WAYLAND_ALLOW_LIBDECOR";
+static const int SDL_HINT_VIDEO_WAYLAND_PREFER_LIBDECOR = "SDL_VIDEO_WAYLAND_PREFER_LIBDECOR";
+static const int SDL_HINT_VIDEO_WAYLAND_MODE_EMULATION = "SDL_VIDEO_WAYLAND_MODE_EMULATION";
+static const int SDL_HINT_VIDEO_WAYLAND_EMULATE_MOUSE_WARP = "SDL_VIDEO_WAYLAND_EMULATE_MOUSE_WARP";
+static const int SDL_HINT_VIDEO_WINDOW_SHARE_PIXEL_FORMAT = "SDL_VIDEO_WINDOW_SHARE_PIXEL_FORMAT";
+static const int SDL_HINT_VIDEO_FOREIGN_WINDOW_OPENGL = "SDL_VIDEO_FOREIGN_WINDOW_OPENGL";
+static const int SDL_HINT_VIDEO_FOREIGN_WINDOW_VULKAN = "SDL_VIDEO_FOREIGN_WINDOW_VULKAN";
+static const int SDL_HINT_VIDEO_WIN_D3DCOMPILER = "SDL_VIDEO_WIN_D3DCOMPILER";
+static const int SDL_HINT_VIDEO_X11_FORCE_EGL = "SDL_VIDEO_X11_FORCE_EGL";
+static const int SDL_HINT_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR = "SDL_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR";
+static const int SDL_HINT_VIDEO_X11_NET_WM_PING = "SDL_VIDEO_X11_NET_WM_PING";
+static const int SDL_HINT_VIDEO_X11_WINDOW_VISUALID = "SDL_VIDEO_X11_WINDOW_VISUALID";
+static const int SDL_HINT_VIDEO_X11_XINERAMA = "SDL_VIDEO_X11_XINERAMA";
+static const int SDL_HINT_VIDEO_X11_XRANDR = "SDL_VIDEO_X11_XRANDR";
+static const int SDL_HINT_VIDEO_X11_XVIDMODE = "SDL_VIDEO_X11_XVIDMODE";
+static const int SDL_HINT_WAVE_FACT_CHUNK = "SDL_WAVE_FACT_CHUNK";
 static const int SDL_HINT_WAVE_RIFF_CHUNK_SIZE = "SDL_WAVE_RIFF_CHUNK_SIZE";
 static const int SDL_HINT_WAVE_TRUNCATION = "SDL_WAVE_TRUNCATION";
-static const int SDL_HINT_WAVE_FACT_CHUNK = "SDL_WAVE_FACT_CHUNK";
-static const int SDL_HINT_DISPLAY_USABLE_BOUNDS = "SDL_DISPLAY_USABLE_BOUNDS";
-static const int SDL_HINT_AUDIO_DEVICE_APP_NAME = "SDL_AUDIO_DEVICE_APP_NAME";
-static const int SDL_HINT_AUDIO_DEVICE_STREAM_NAME = "SDL_AUDIO_DEVICE_STREAM_NAME";
-static const int SDL_HINT_AUDIO_DEVICE_STREAM_ROLE = "SDL_AUDIO_DEVICE_STREAM_ROLE";
-static const int SDL_HINT_ALLOW_ALT_TAB_WHILE_GRABBED = "SDL_ALLOW_ALT_TAB_WHILE_GRABBED";
-static const int SDL_HINT_PREFERRED_LOCALES = "SDL_PREFERRED_LOCALES";
+static const int SDL_HINT_WINDOWS_DISABLE_THREAD_NAMING = "SDL_WINDOWS_DISABLE_THREAD_NAMING";
+static const int SDL_HINT_WINDOWS_ENABLE_MESSAGELOOP = "SDL_WINDOWS_ENABLE_MESSAGELOOP";
+static const int SDL_HINT_WINDOWS_FORCE_MUTEX_CRITICAL_SECTIONS = "SDL_WINDOWS_FORCE_MUTEX_CRITICAL_SECTIONS";
+static const int SDL_HINT_WINDOWS_FORCE_SEMAPHORE_KERNEL = "SDL_WINDOWS_FORCE_SEMAPHORE_KERNEL";
+static const int SDL_HINT_WINDOWS_INTRESOURCE_ICON = "SDL_WINDOWS_INTRESOURCE_ICON";
+static const int SDL_HINT_WINDOWS_INTRESOURCE_ICON_SMALL = "SDL_WINDOWS_INTRESOURCE_ICON_SMALL";
+static const int SDL_HINT_WINDOWS_NO_CLOSE_ON_ALT_F4 = "SDL_WINDOWS_NO_CLOSE_ON_ALT_F4";
+static const int SDL_HINT_WINDOWS_USE_D3D9EX = "SDL_WINDOWS_USE_D3D9EX";
+static const int SDL_HINT_WINDOWS_DPI_AWARENESS = "SDL_WINDOWS_DPI_AWARENESS";
+static const int SDL_HINT_WINDOWS_DPI_SCALING = "SDL_WINDOWS_DPI_SCALING";
+static const int SDL_HINT_WINDOW_FRAME_USABLE_WHILE_CURSOR_HIDDEN = "SDL_WINDOW_FRAME_USABLE_WHILE_CURSOR_HIDDEN";
+static const int SDL_HINT_WINDOW_NO_ACTIVATION_WHEN_SHOWN = "SDL_WINDOW_NO_ACTIVATION_WHEN_SHOWN";
+static const int SDL_HINT_WINRT_HANDLE_BACK_BUTTON = "SDL_WINRT_HANDLE_BACK_BUTTON";
+static const int SDL_HINT_WINRT_PRIVACY_POLICY_LABEL = "SDL_WINRT_PRIVACY_POLICY_LABEL";
+static const int SDL_HINT_WINRT_PRIVACY_POLICY_URL = "SDL_WINRT_PRIVACY_POLICY_URL";
+static const int SDL_HINT_X11_FORCE_OVERRIDE_REDIRECT = "SDL_X11_FORCE_OVERRIDE_REDIRECT";
+static const int SDL_HINT_XINPUT_ENABLED = "SDL_XINPUT_ENABLED";
+static const int SDL_HINT_DIRECTINPUT_ENABLED = "SDL_DIRECTINPUT_ENABLED";
+static const int SDL_HINT_XINPUT_USE_OLD_JOYSTICK_MAPPING = "SDL_XINPUT_USE_OLD_JOYSTICK_MAPPING";
+static const int SDL_HINT_AUDIO_INCLUDE_MONITORS = "SDL_AUDIO_INCLUDE_MONITORS";
+static const int SDL_HINT_X11_WINDOW_TYPE = "SDL_X11_WINDOW_TYPE";
+static const int SDL_HINT_QUIT_ON_LAST_WINDOW_CLOSE = "SDL_QUIT_ON_LAST_WINDOW_CLOSE";
+static const int SDL_HINT_VIDEODRIVER = "SDL_VIDEODRIVER";
+static const int SDL_HINT_AUDIODRIVER = "SDL_AUDIODRIVER";
+static const int SDL_HINT_KMSDRM_DEVICE_INDEX = "SDL_KMSDRM_DEVICE_INDEX";
+static const int SDL_HINT_TRACKPAD_IS_TOUCH_ONLY = "SDL_TRACKPAD_IS_TOUCH_ONLY";
 static const int SDL_MAX_LOG_MESSAGE = 4096;
 static const int SDL_NONSHAPEABLE_WINDOW = -1;
 static const int SDL_INVALID_SHAPE_ARGUMENT = -2;
 static const int SDL_WINDOW_LACKS_SHAPE = -3;
 static const int SDL_MAJOR_VERSION = 2;
-static const int SDL_MINOR_VERSION = 0;
-static const int SDL_PATCHLEVEL = 15;
+static const int SDL_MINOR_VERSION = 26;
+static const int SDL_PATCHLEVEL = 0;
 static const int SDL_INIT_TIMER = 0x00000001u;
 static const int SDL_INIT_AUDIO = 0x00000010u;
 static const int SDL_INIT_VIDEO = 0x00000020u;
