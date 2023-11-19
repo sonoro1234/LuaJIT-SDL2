@@ -205,8 +205,8 @@ typedef struct SDL_AssertData
     const struct SDL_AssertData *next;
 } SDL_AssertData;
 SDL_AssertState SDL_ReportAssertion(SDL_AssertData *,
-                                                             const char *,
-                                                             const char *, int)
+                                                            const char *,
+                                                            const char *, int)
 ;
 typedef SDL_AssertState ( *SDL_AssertionHandler)(
                                  const SDL_AssertData* data, void* userdata);
@@ -248,9 +248,9 @@ int SDL_Error(SDL_errorcode code);
 struct SDL_mutex;
 typedef struct SDL_mutex SDL_mutex;
 SDL_mutex * SDL_CreateMutex(void);
-int SDL_LockMutex(SDL_mutex * mutex);
-int SDL_TryLockMutex(SDL_mutex * mutex);
-int SDL_UnlockMutex(SDL_mutex * mutex);
+int SDL_LockMutex(SDL_mutex * mutex) ;
+int SDL_TryLockMutex(SDL_mutex * mutex) ;
+int SDL_UnlockMutex(SDL_mutex * mutex) ;
 void SDL_DestroyMutex(SDL_mutex * mutex);
 struct SDL_semaphore;
 typedef struct SDL_semaphore SDL_sem;
@@ -258,7 +258,7 @@ SDL_sem * SDL_CreateSemaphore(Uint32 initial_value);
 void SDL_DestroySemaphore(SDL_sem * sem);
 int SDL_SemWait(SDL_sem * sem);
 int SDL_SemTryWait(SDL_sem * sem);
-int SDL_SemWaitTimeout(SDL_sem * sem, Uint32 ms);
+int SDL_SemWaitTimeout(SDL_sem *sem, Uint32 timeout);
 int SDL_SemPost(SDL_sem * sem);
 Uint32 SDL_SemValue(SDL_sem * sem);
 struct SDL_cond;
@@ -1025,7 +1025,8 @@ typedef enum
     SDL_DISPLAYEVENT_NONE,
     SDL_DISPLAYEVENT_ORIENTATION,
     SDL_DISPLAYEVENT_CONNECTED,
-    SDL_DISPLAYEVENT_DISCONNECTED
+    SDL_DISPLAYEVENT_DISCONNECTED,
+    SDL_DISPLAYEVENT_MOVED
 } SDL_DisplayEventID;
 typedef enum
 {
@@ -1174,11 +1175,13 @@ void SDL_MinimizeWindow(SDL_Window * window);
 void SDL_RestoreWindow(SDL_Window * window);
 int SDL_SetWindowFullscreen(SDL_Window * window,
                                                     Uint32 flags);
+SDL_bool SDL_HasWindowSurface(SDL_Window *window);
 SDL_Surface * SDL_GetWindowSurface(SDL_Window * window);
 int SDL_UpdateWindowSurface(SDL_Window * window);
 int SDL_UpdateWindowSurfaceRects(SDL_Window * window,
                                                          const SDL_Rect * rects,
                                                          int numrects);
+int SDL_DestroyWindowSurface(SDL_Window *window);
 void SDL_SetWindowGrab(SDL_Window * window,
                                                SDL_bool grabbed);
 void SDL_SetWindowKeyboardGrab(SDL_Window * window,
@@ -1884,8 +1887,8 @@ typedef enum
     SDL_JOYSTICK_POWER_WIRED,
     SDL_JOYSTICK_POWER_MAX
 } SDL_JoystickPowerLevel;
-void SDL_LockJoysticks(void);
-void SDL_UnlockJoysticks(void);
+void SDL_LockJoysticks(void) ;
+void SDL_UnlockJoysticks(void) ;
 int SDL_NumJoysticks(void);
 const char * SDL_JoystickNameForIndex(int device_index);
 const char * SDL_JoystickPathForIndex(int device_index);
@@ -2922,7 +2925,7 @@ typedef enum
     SDL_POWERSTATE_CHARGING,
     SDL_POWERSTATE_CHARGED
 } SDL_PowerState;
-SDL_PowerState SDL_GetPowerInfo(int *secs, int *pct);
+SDL_PowerState SDL_GetPowerInfo(int *seconds, int *percent);
 typedef enum
 {
     SDL_RENDERER_SOFTWARE = 0x00000001,
@@ -3411,6 +3414,7 @@ static const int SDL_HINT_BMP_SAVE_LEGACY_FORMAT = "SDL_BMP_SAVE_LEGACY_FORMAT";
 static const int SDL_HINT_DISPLAY_USABLE_BOUNDS = "SDL_DISPLAY_USABLE_BOUNDS";
 static const int SDL_HINT_EMSCRIPTEN_ASYNCIFY = "SDL_EMSCRIPTEN_ASYNCIFY";
 static const int SDL_HINT_EMSCRIPTEN_KEYBOARD_ELEMENT = "SDL_EMSCRIPTEN_KEYBOARD_ELEMENT";
+static const int SDL_HINT_ENABLE_SCREEN_KEYBOARD = "SDL_ENABLE_SCREEN_KEYBOARD";
 static const int SDL_HINT_ENABLE_STEAM_CONTROLLERS = "SDL_ENABLE_STEAM_CONTROLLERS";
 static const int SDL_HINT_EVENT_LOGGING = "SDL_EVENT_LOGGING";
 static const int SDL_HINT_FORCE_RAISEWINDOW = "SDL_HINT_FORCE_RAISEWINDOW";
@@ -3462,6 +3466,7 @@ static const int SDL_HINT_JOYSTICK_RAWINPUT = "SDL_JOYSTICK_RAWINPUT";
 static const int SDL_HINT_JOYSTICK_RAWINPUT_CORRELATE_XINPUT = "SDL_JOYSTICK_RAWINPUT_CORRELATE_XINPUT";
 static const int SDL_HINT_JOYSTICK_ROG_CHAKRAM = "SDL_JOYSTICK_ROG_CHAKRAM";
 static const int SDL_HINT_JOYSTICK_THREAD = "SDL_JOYSTICK_THREAD";
+static const int SDL_HINT_JOYSTICK_WGI = "SDL_JOYSTICK_WGI";
 static const int SDL_HINT_KMSDRM_REQUIRE_DRM_MASTER = "SDL_KMSDRM_REQUIRE_DRM_MASTER";
 static const int SDL_HINT_JOYSTICK_DEVICE = "SDL_JOYSTICK_DEVICE";
 static const int SDL_HINT_LINUX_DIGITAL_HATS = "SDL_LINUX_DIGITAL_HATS";
@@ -3499,6 +3504,7 @@ static const int SDL_HINT_RENDER_LOGICAL_SIZE_MODE = "SDL_RENDER_LOGICAL_SIZE_MO
 static const int SDL_HINT_RENDER_OPENGL_SHADERS = "SDL_RENDER_OPENGL_SHADERS";
 static const int SDL_HINT_RENDER_SCALE_QUALITY = "SDL_RENDER_SCALE_QUALITY";
 static const int SDL_HINT_RENDER_VSYNC = "SDL_RENDER_VSYNC";
+static const int SDL_HINT_RENDER_METAL_PREFER_LOW_POWER_DEVICE = "SDL_RENDER_METAL_PREFER_LOW_POWER_DEVICE";
 static const int SDL_HINT_PS2_DYNAMIC_VSYNC = "SDL_PS2_DYNAMIC_VSYNC";
 static const int SDL_HINT_RETURN_KEY_HIDES_IME = "SDL_RETURN_KEY_HIDES_IME";
 static const int SDL_HINT_RPI_VIDEO_LAYER = "SDL_RPI_VIDEO_LAYER";
@@ -3536,6 +3542,7 @@ static const int SDL_HINT_WAVE_FACT_CHUNK = "SDL_WAVE_FACT_CHUNK";
 static const int SDL_HINT_WAVE_RIFF_CHUNK_SIZE = "SDL_WAVE_RIFF_CHUNK_SIZE";
 static const int SDL_HINT_WAVE_TRUNCATION = "SDL_WAVE_TRUNCATION";
 static const int SDL_HINT_WINDOWS_DISABLE_THREAD_NAMING = "SDL_WINDOWS_DISABLE_THREAD_NAMING";
+static const int SDL_HINT_WINDOWS_ENABLE_MENU_MNEMONICS = "SDL_WINDOWS_ENABLE_MENU_MNEMONICS";
 static const int SDL_HINT_WINDOWS_ENABLE_MESSAGELOOP = "SDL_WINDOWS_ENABLE_MESSAGELOOP";
 static const int SDL_HINT_WINDOWS_FORCE_MUTEX_CRITICAL_SECTIONS = "SDL_WINDOWS_FORCE_MUTEX_CRITICAL_SECTIONS";
 static const int SDL_HINT_WINDOWS_FORCE_SEMAPHORE_KERNEL = "SDL_WINDOWS_FORCE_SEMAPHORE_KERNEL";
@@ -3566,8 +3573,8 @@ static const int SDL_NONSHAPEABLE_WINDOW = -1;
 static const int SDL_INVALID_SHAPE_ARGUMENT = -2;
 static const int SDL_WINDOW_LACKS_SHAPE = -3;
 static const int SDL_MAJOR_VERSION = 2;
-static const int SDL_MINOR_VERSION = 26;
-static const int SDL_PATCHLEVEL = 0;
+static const int SDL_MINOR_VERSION = 28;
+static const int SDL_PATCHLEVEL = 5;
 static const int SDL_INIT_TIMER = 0x00000001u;
 static const int SDL_INIT_AUDIO = 0x00000010u;
 static const int SDL_INIT_VIDEO = 0x00000020u;
