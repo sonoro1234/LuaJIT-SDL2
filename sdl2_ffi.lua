@@ -123,11 +123,11 @@ int SDL_strncmp(const char *str1, const char *str2, size_t maxlen);
 int SDL_strcasecmp(const char *str1, const char *str2);
 int SDL_strncasecmp(const char *str1, const char *str2, size_t len);
 int SDL_sscanf(const char *text, const char *fmt, ...) __attribute__ (( format( __scanf__, 2, 2 +1 )));
-int SDL_vsscanf(const char *text, const char *fmt, va_list ap);
+int SDL_vsscanf(const char *text, const char *fmt, va_list ap) __attribute__(( format( __scanf__, 2, 0 )));
 int SDL_snprintf( char *text, size_t maxlen, const char *fmt, ... ) __attribute__ (( format( __printf__, 3, 3 +1 )));
-int SDL_vsnprintf( char *text, size_t maxlen, const char *fmt, va_list ap);
+int SDL_vsnprintf( char *text, size_t maxlen, const char *fmt, va_list ap) __attribute__(( format( __printf__, 3, 0 )));
 int SDL_asprintf(char **strp, const char *fmt, ...) __attribute__ (( format( __printf__, 2, 2 +1 )));
-int SDL_vasprintf(char **strp, const char *fmt, va_list ap);
+int SDL_vasprintf(char **strp, const char *fmt, va_list ap) __attribute__(( format( __printf__, 2, 0 )));
 double SDL_acos(double x);
 float SDL_acosf(float x);
 double SDL_asin(double x);
@@ -522,7 +522,8 @@ typedef enum
     SDL_PIXELTYPE_ARRAYU16,
     SDL_PIXELTYPE_ARRAYU32,
     SDL_PIXELTYPE_ARRAYF16,
-    SDL_PIXELTYPE_ARRAYF32
+    SDL_PIXELTYPE_ARRAYF32,
+    SDL_PIXELTYPE_INDEX2
 } SDL_PixelType;
 typedef enum
 {
@@ -572,6 +573,12 @@ typedef enum
                                     ,
     SDL_PIXELFORMAT_INDEX1MSB =
         ((1 << 28) | ((SDL_PIXELTYPE_INDEX1) << 24) | ((SDL_BITMAPORDER_1234) << 20) | ((0) << 16) | ((1) << 8) | ((0) << 0))
+                                    ,
+    SDL_PIXELFORMAT_INDEX2LSB =
+        ((1 << 28) | ((SDL_PIXELTYPE_INDEX2) << 24) | ((SDL_BITMAPORDER_4321) << 20) | ((0) << 16) | ((2) << 8) | ((0) << 0))
+                                    ,
+    SDL_PIXELFORMAT_INDEX2MSB =
+        ((1 << 28) | ((SDL_PIXELTYPE_INDEX2) << 24) | ((SDL_BITMAPORDER_1234) << 20) | ((0) << 16) | ((2) << 8) | ((0) << 0))
                                     ,
     SDL_PIXELFORMAT_INDEX4LSB =
         ((1 << 28) | ((SDL_PIXELTYPE_INDEX4) << 24) | ((SDL_BITMAPORDER_4321) << 20) | ((0) << 16) | ((4) << 8) | ((0) << 0))
@@ -669,6 +676,10 @@ typedef enum
     SDL_PIXELFORMAT_ARGB32 = SDL_PIXELFORMAT_BGRA8888,
     SDL_PIXELFORMAT_BGRA32 = SDL_PIXELFORMAT_ARGB8888,
     SDL_PIXELFORMAT_ABGR32 = SDL_PIXELFORMAT_RGBA8888,
+    SDL_PIXELFORMAT_RGBX32 = SDL_PIXELFORMAT_XBGR8888,
+    SDL_PIXELFORMAT_XRGB32 = SDL_PIXELFORMAT_BGRX8888,
+    SDL_PIXELFORMAT_BGRX32 = SDL_PIXELFORMAT_XRGB8888,
+    SDL_PIXELFORMAT_XBGR32 = SDL_PIXELFORMAT_RGBX8888,
     SDL_PIXELFORMAT_YV12 =
         ((((Uint32)(((Uint8)(('Y'))))) << 0) | (((Uint32)(((Uint8)(('V'))))) << 8) | (((Uint32)(((Uint8)(('1'))))) << 16) | (((Uint32)(((Uint8)(('2'))))) << 24)),
     SDL_PIXELFORMAT_IYUV =
@@ -2022,7 +2033,8 @@ typedef enum
     SDL_CONTROLLER_TYPE_NVIDIA_SHIELD,
     SDL_CONTROLLER_TYPE_NINTENDO_SWITCH_JOYCON_LEFT,
     SDL_CONTROLLER_TYPE_NINTENDO_SWITCH_JOYCON_RIGHT,
-    SDL_CONTROLLER_TYPE_NINTENDO_SWITCH_JOYCON_PAIR
+    SDL_CONTROLLER_TYPE_NINTENDO_SWITCH_JOYCON_PAIR,
+    SDL_CONTROLLER_TYPE_MAX
 } SDL_GameControllerType;
 typedef enum
 {
@@ -2068,6 +2080,7 @@ Uint16 SDL_GameControllerGetProduct(SDL_GameController *gamecontroller);
 Uint16 SDL_GameControllerGetProductVersion(SDL_GameController *gamecontroller);
 Uint16 SDL_GameControllerGetFirmwareVersion(SDL_GameController *gamecontroller);
 const char * SDL_GameControllerGetSerial(SDL_GameController *gamecontroller);
+Uint64 SDL_GameControllerGetSteamHandle(SDL_GameController *gamecontroller);
 SDL_bool SDL_GameControllerGetAttached(SDL_GameController *gamecontroller);
 SDL_Joystick * SDL_GameControllerGetJoystick(SDL_GameController *gamecontroller);
 int SDL_GameControllerEventState(int state);
@@ -2215,6 +2228,8 @@ typedef enum
     SDL_CONTROLLERTOUCHPADMOTION,
     SDL_CONTROLLERTOUCHPADUP,
     SDL_CONTROLLERSENSORUPDATE,
+    SDL_CONTROLLERUPDATECOMPLETE_RESERVED_FOR_SDL3,
+    SDL_CONTROLLERSTEAMHANDLEUPDATED,
     SDL_FINGERDOWN = 0x700,
     SDL_FINGERUP,
     SDL_FINGERMOTION,
@@ -2509,11 +2524,6 @@ typedef struct SDL_QuitEvent
     Uint32 type;
     Uint32 timestamp;
 } SDL_QuitEvent;
-typedef struct SDL_OSEvent
-{
-    Uint32 type;
-    Uint32 timestamp;
-} SDL_OSEvent;
 typedef struct SDL_UserEvent
 {
     Uint32 type;
@@ -2859,7 +2869,7 @@ void SDL_LogMessage(int category,
                                             const char *fmt, ...) __attribute__ (( format( __printf__, 3, 3 +1 )));
 void SDL_LogMessageV(int category,
                                              SDL_LogPriority priority,
-                                             const char *fmt, va_list ap);
+                                             const char *fmt, va_list ap) __attribute__(( format( __printf__, 3, 0 )));
 typedef void ( *SDL_LogOutputFunction)(void *userdata, int category, SDL_LogPriority priority, const char *message);
 void SDL_LogGetOutputFunction(SDL_LogOutputFunction *callback, void **userdata);
 void SDL_LogSetOutputFunction(SDL_LogOutputFunction callback, void *userdata);
@@ -3230,7 +3240,8 @@ int SDL_InitSubSystem(Uint32 flags);
 void SDL_QuitSubSystem(Uint32 flags);
 Uint32 SDL_WasInit(Uint32 flags);
 void SDL_Quit(void);]]
-ffi_cdef[[static const int SDL_AUDIO_DRIVER_WASAPI = 1;
+ffi_cdef[[static const int SDL_WINAPI_FAMILY_PHONE = 0;
+static const int SDL_AUDIO_DRIVER_WASAPI = 1;
 static const int SDL_AUDIO_DRIVER_DSOUND = 1;
 static const int SDL_AUDIO_DRIVER_WINMM = 1;
 static const int SDL_AUDIO_DRIVER_DISK = 1;
@@ -3433,6 +3444,14 @@ static const int SDL_HINT_IME_SHOW_UI = "SDL_IME_SHOW_UI";
 static const int SDL_HINT_IME_SUPPORT_EXTENDED_TEXT = "SDL_IME_SUPPORT_EXTENDED_TEXT";
 static const int SDL_HINT_IOS_HIDE_HOME_INDICATOR = "SDL_IOS_HIDE_HOME_INDICATOR";
 static const int SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS = "SDL_JOYSTICK_ALLOW_BACKGROUND_EVENTS";
+static const int SDL_HINT_JOYSTICK_ARCADESTICK_DEVICES = "SDL_JOYSTICK_ARCADESTICK_DEVICES";
+static const int SDL_HINT_JOYSTICK_ARCADESTICK_DEVICES_EXCLUDED = "SDL_JOYSTICK_ARCADESTICK_DEVICES_EXCLUDED";
+static const int SDL_HINT_JOYSTICK_BLACKLIST_DEVICES = "SDL_JOYSTICK_BLACKLIST_DEVICES";
+static const int SDL_HINT_JOYSTICK_BLACKLIST_DEVICES_EXCLUDED = "SDL_JOYSTICK_BLACKLIST_DEVICES_EXCLUDED";
+static const int SDL_HINT_JOYSTICK_FLIGHTSTICK_DEVICES = "SDL_JOYSTICK_FLIGHTSTICK_DEVICES";
+static const int SDL_HINT_JOYSTICK_FLIGHTSTICK_DEVICES_EXCLUDED = "SDL_JOYSTICK_FLIGHTSTICK_DEVICES_EXCLUDED";
+static const int SDL_HINT_JOYSTICK_GAMECUBE_DEVICES = "SDL_JOYSTICK_GAMECUBE_DEVICES";
+static const int SDL_HINT_JOYSTICK_GAMECUBE_DEVICES_EXCLUDED = "SDL_JOYSTICK_GAMECUBE_DEVICES_EXCLUDED";
 static const int SDL_HINT_JOYSTICK_HIDAPI = "SDL_JOYSTICK_HIDAPI";
 static const int SDL_HINT_JOYSTICK_HIDAPI_GAMECUBE = "SDL_JOYSTICK_HIDAPI_GAMECUBE";
 static const int SDL_HINT_JOYSTICK_GAMECUBE_RUMBLE_BRAKE = "SDL_JOYSTICK_GAMECUBE_RUMBLE_BRAKE";
@@ -3450,6 +3469,7 @@ static const int SDL_HINT_JOYSTICK_HIDAPI_PS5_PLAYER_LED = "SDL_JOYSTICK_HIDAPI_
 static const int SDL_HINT_JOYSTICK_HIDAPI_PS5_RUMBLE = "SDL_JOYSTICK_HIDAPI_PS5_RUMBLE";
 static const int SDL_HINT_JOYSTICK_HIDAPI_STADIA = "SDL_JOYSTICK_HIDAPI_STADIA";
 static const int SDL_HINT_JOYSTICK_HIDAPI_STEAM = "SDL_JOYSTICK_HIDAPI_STEAM";
+static const int SDL_HINT_JOYSTICK_HIDAPI_STEAMDECK = "SDL_JOYSTICK_HIDAPI_STEAMDECK";
 static const int SDL_HINT_JOYSTICK_HIDAPI_SWITCH = "SDL_JOYSTICK_HIDAPI_SWITCH";
 static const int SDL_HINT_JOYSTICK_HIDAPI_SWITCH_HOME_LED = "SDL_JOYSTICK_HIDAPI_SWITCH_HOME_LED";
 static const int SDL_HINT_JOYSTICK_HIDAPI_JOYCON_HOME_LED = "SDL_JOYSTICK_HIDAPI_JOYCON_HOME_LED";
@@ -3462,17 +3482,25 @@ static const int SDL_HINT_JOYSTICK_HIDAPI_XBOX_360_PLAYER_LED = "SDL_JOYSTICK_HI
 static const int SDL_HINT_JOYSTICK_HIDAPI_XBOX_360_WIRELESS = "SDL_JOYSTICK_HIDAPI_XBOX_360_WIRELESS";
 static const int SDL_HINT_JOYSTICK_HIDAPI_XBOX_ONE = "SDL_JOYSTICK_HIDAPI_XBOX_ONE";
 static const int SDL_HINT_JOYSTICK_HIDAPI_XBOX_ONE_HOME_LED = "SDL_JOYSTICK_HIDAPI_XBOX_ONE_HOME_LED";
+static const int SDL_HINT_JOYSTICK_IOKIT = "SDL_JOYSTICK_IOKIT";
+static const int SDL_HINT_JOYSTICK_MFI = "SDL_JOYSTICK_MFI";
 static const int SDL_HINT_JOYSTICK_RAWINPUT = "SDL_JOYSTICK_RAWINPUT";
 static const int SDL_HINT_JOYSTICK_RAWINPUT_CORRELATE_XINPUT = "SDL_JOYSTICK_RAWINPUT_CORRELATE_XINPUT";
 static const int SDL_HINT_JOYSTICK_ROG_CHAKRAM = "SDL_JOYSTICK_ROG_CHAKRAM";
 static const int SDL_HINT_JOYSTICK_THREAD = "SDL_JOYSTICK_THREAD";
+static const int SDL_HINT_JOYSTICK_THROTTLE_DEVICES = "SDL_JOYSTICK_THROTTLE_DEVICES";
+static const int SDL_HINT_JOYSTICK_THROTTLE_DEVICES_EXCLUDED = "SDL_JOYSTICK_THROTTLE_DEVICES_EXCLUDED";
 static const int SDL_HINT_JOYSTICK_WGI = "SDL_JOYSTICK_WGI";
+static const int SDL_HINT_JOYSTICK_WHEEL_DEVICES = "SDL_JOYSTICK_WHEEL_DEVICES";
+static const int SDL_HINT_JOYSTICK_WHEEL_DEVICES_EXCLUDED = "SDL_JOYSTICK_WHEEL_DEVICES_EXCLUDED";
+static const int SDL_HINT_JOYSTICK_ZERO_CENTERED_DEVICES = "SDL_JOYSTICK_ZERO_CENTERED_DEVICES";
 static const int SDL_HINT_KMSDRM_REQUIRE_DRM_MASTER = "SDL_KMSDRM_REQUIRE_DRM_MASTER";
 static const int SDL_HINT_JOYSTICK_DEVICE = "SDL_JOYSTICK_DEVICE";
 static const int SDL_HINT_LINUX_DIGITAL_HATS = "SDL_LINUX_DIGITAL_HATS";
 static const int SDL_HINT_LINUX_HAT_DEADZONES = "SDL_LINUX_HAT_DEADZONES";
 static const int SDL_HINT_LINUX_JOYSTICK_CLASSIC = "SDL_LINUX_JOYSTICK_CLASSIC";
 static const int SDL_HINT_LINUX_JOYSTICK_DEADZONES = "SDL_LINUX_JOYSTICK_DEADZONES";
+static const int SDL_HINT_LOGGING = "SDL_LOGGING";
 static const int SDL_HINT_MAC_BACKGROUND_APP = "SDL_MAC_BACKGROUND_APP";
 static const int SDL_HINT_MAC_CTRL_CLICK_EMULATE_RIGHT_CLICK = "SDL_MAC_CTRL_CLICK_EMULATE_RIGHT_CLICK";
 static const int SDL_HINT_MAC_OPENGL_ASYNC_DISPATCH = "SDL_MAC_OPENGL_ASYNC_DISPATCH";
@@ -3505,6 +3533,8 @@ static const int SDL_HINT_RENDER_OPENGL_SHADERS = "SDL_RENDER_OPENGL_SHADERS";
 static const int SDL_HINT_RENDER_SCALE_QUALITY = "SDL_RENDER_SCALE_QUALITY";
 static const int SDL_HINT_RENDER_VSYNC = "SDL_RENDER_VSYNC";
 static const int SDL_HINT_RENDER_METAL_PREFER_LOW_POWER_DEVICE = "SDL_RENDER_METAL_PREFER_LOW_POWER_DEVICE";
+static const int SDL_HINT_ROG_GAMEPAD_MICE = "SDL_ROG_GAMEPAD_MICE";
+static const int SDL_HINT_ROG_GAMEPAD_MICE_EXCLUDED = "SDL_ROG_GAMEPAD_MICE_EXCLUDED";
 static const int SDL_HINT_PS2_DYNAMIC_VSYNC = "SDL_PS2_DYNAMIC_VSYNC";
 static const int SDL_HINT_RETURN_KEY_HIDES_IME = "SDL_RETURN_KEY_HIDES_IME";
 static const int SDL_HINT_RPI_VIDEO_LAYER = "SDL_RPI_VIDEO_LAYER";
@@ -3568,13 +3598,14 @@ static const int SDL_HINT_VIDEODRIVER = "SDL_VIDEODRIVER";
 static const int SDL_HINT_AUDIODRIVER = "SDL_AUDIODRIVER";
 static const int SDL_HINT_KMSDRM_DEVICE_INDEX = "SDL_KMSDRM_DEVICE_INDEX";
 static const int SDL_HINT_TRACKPAD_IS_TOUCH_ONLY = "SDL_TRACKPAD_IS_TOUCH_ONLY";
+static const int SDL_HINT_SHUTDOWN_DBUS_ON_QUIT = "SDL_SHUTDOWN_DBUS_ON_QUIT";
 static const int SDL_MAX_LOG_MESSAGE = 4096;
 static const int SDL_NONSHAPEABLE_WINDOW = -1;
 static const int SDL_INVALID_SHAPE_ARGUMENT = -2;
 static const int SDL_WINDOW_LACKS_SHAPE = -3;
 static const int SDL_MAJOR_VERSION = 2;
-static const int SDL_MINOR_VERSION = 28;
-static const int SDL_PATCHLEVEL = 5;
+static const int SDL_MINOR_VERSION = 30;
+static const int SDL_PATCHLEVEL = 3;
 static const int SDL_INIT_TIMER = 0x00000001u;
 static const int SDL_INIT_AUDIO = 0x00000010u;
 static const int SDL_INIT_VIDEO = 0x00000020u;
